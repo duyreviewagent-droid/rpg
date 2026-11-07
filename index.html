@@ -70,6 +70,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--body); font-s
 .menu-list .btn.primary { justify-content: center; font-size: 18px; padding: 14px 16px; }
 .menu-list .btn .k { margin-left: auto; color: var(--muted); font-size: 12px; }
 .menu-foot { color: var(--muted); font-size: 12px; margin: 0; }
+.menu-card .madeby { margin: -14px 0 0; font: 700 18px var(--display); color: var(--accent); letter-spacing: .04em; }
 /* ---- tutorial ---- */
 .tour-spot { position: fixed; z-index: 50; border: 2px solid var(--accent); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(7,7,11,.68); pointer-events: none; transition: all .25s ease; }
 .tour-card { position: fixed; z-index: 51; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.6); }
@@ -246,6 +247,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
   <div class="menu-card">
     <h2 id="menu-title">RPG</h2>
     <p class="tag">Random Pixel / Picture Generator</p>
+    <p class="madeby">Made by Vincent</p>
     <div class="menu-list">
       <button type="button" class="btn primary" id="m-start">▶&nbsp; Start creating</button>
       <button type="button" class="btn" id="m-surprise">🎲 Surprise me <span class="k">S</span></button>
@@ -254,7 +256,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <button type="button" class="btn" id="m-settings">⚙️ Settings</button>
       <button type="button" class="btn" id="m-about">ℹ️ About</button>
     </div>
-    <p class="menu-foot">Forests, trees, beaches, waterfalls, landscapes and 3D islands, as looping pixel art.<br>Made by Vincent, for GIF use and loops.</p>
+    <p class="menu-foot">Forests, trees, beaches, waterfalls, landscapes and 3D islands, as looping pixel art, for GIF use and loops.</p>
   </div>
 </div>
 <div class="settings-wrap" id="settings" hidden>
