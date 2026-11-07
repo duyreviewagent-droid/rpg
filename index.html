@@ -41,6 +41,40 @@ body { background: var(--bg); color: var(--fg); font-family: var(--body); font-s
 .brand { display: grid; gap: 2px; }
 .brand h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; color: var(--accent); letter-spacing: 0.03em; }
 .brand p { margin: 0; color: var(--muted); font-size: 12px; }
+.brand-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand-btns { display: flex; gap: 6px; }
+.brand-btns .btn { padding: 5px 9px; font-size: 12px; }
+.brand .saved { color: #7fd18b; font-size: 11px; }
+.settings-wrap { position: fixed; inset: 0; z-index: 45; background: rgba(7,7,11,.7); display: grid; place-items: center; padding: 16px; overflow: auto; }
+.settings { width: min(460px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+.settings header { display: flex; align-items: center; justify-content: space-between; }
+.settings h3 { margin: 0; font: 700 22px var(--display); color: var(--accent); }
+.settings fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; }
+.settings legend { padding: 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.danger-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.btn.danger { background: var(--danger); color: #1a0806; border-color: var(--danger); }
+/* ---- main menu ---- */
+.menu { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: var(--screen); overflow: auto;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.menu canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; opacity: 0.55; }
+.menu::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(7,7,11,.35), rgba(7,7,11,.85)); pointer-events: none; }
+.menu-card { position: relative; z-index: 1; display: grid; gap: 22px; justify-items: center; text-align: center; width: min(420px, 100%); }
+.menu-card h2 { margin: 0; font: 700 clamp(64px, 14vw, 120px)/0.9 var(--display); color: var(--accent); letter-spacing: 0.04em; text-shadow: 0 6px 0 rgba(0,0,0,.45); }
+.menu-card .tag { margin: -10px 0 0; color: var(--fg); font-size: 15px; opacity: .9; }
+.menu-list { display: grid; gap: 10px; width: 100%; }
+.menu-list .btn { width: 100%; padding: 12px 16px; font-size: 16px; justify-content: flex-start; gap: 12px; background: rgba(27,26,37,.85); backdrop-filter: blur(6px); }
+.menu-list .btn.primary { justify-content: center; font-size: 18px; padding: 14px 16px; }
+.menu-list .btn .k { margin-left: auto; color: var(--muted); font-size: 12px; }
+.menu-foot { color: var(--muted); font-size: 12px; margin: 0; }
+/* ---- tutorial ---- */
+.tour-spot { position: fixed; z-index: 50; border: 2px solid var(--accent); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(7,7,11,.68); pointer-events: none; transition: all .25s ease; }
+.tour-card { position: fixed; z-index: 51; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.6); }
+.tour-card h3 { margin: 0; font: 700 18px var(--display); color: var(--accent); }
+.tour-card p { margin: 0; color: var(--fg); font-size: 14px; }
+.tour-nav { display: flex; align-items: center; gap: 8px; }
+.tour-nav .dots { margin-right: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
 .group { display: grid; gap: 8px; min-width: 0; }
 .group > .label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .seg { display: flex; flex-wrap: wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px; gap: 2px; }
@@ -112,11 +146,13 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
 <div class="app">
   <aside class="side" aria-label="Generator settings">
     <div class="brand">
-      <h1>RPG</h1>
+      <div class="brand-top"><h1>RPG</h1>
+        <span class="brand-btns"><button type="button" class="btn" id="open-menu">☰ Menu</button><button type="button" class="btn" id="open-tour" aria-label="How to use RPG">?</button><button type="button" class="btn" id="open-settings" aria-label="Settings">⚙</button></span></div>
       <p>Random Pixel / Picture Generator · <a href="gallery/" style="color:var(--accent)">Gallery</a></p>
+      <p class="saved" id="saved-note">✓ Changes save automatically</p>
     </div>
 
-    <div class="group">
+    <div class="group" id="t-mode">
       <span class="label" id="lbl-mode">Mode</span>
       <div class="seg" role="group" aria-labelledby="lbl-mode" id="mode-seg">
         <button type="button" data-mode="2D" aria-pressed="true">2D</button>
@@ -146,7 +182,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <div class="row"><label for="effect">Effect</label><select id="effect"><option value="sparkle">Sparkle</option><option value="drift">Camera drift</option><option value="snow">Snowfall</option><option value="rain">Rain</option></select></div>
     </div>
 
-    <div class="group">
+    <div class="group" id="t-pixels">
       <span class="label" id="lbl-px">Pixel size</span>
       <div class="seg" role="group" aria-labelledby="lbl-px" id="px-seg"></div>
       <div class="ends"><span>Big pixels</span><span id="px-dims">160 × 90</span><span>Small pixels</span></div>
@@ -157,7 +193,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <div class="row"><input type="number" id="seed" min="1" max="999999" step="1"><button type="button" class="btn" id="dice" aria-label="New random seed">New</button></div>
     </div>
 
-    <div class="group">
+    <div class="group" id="t-anim">
       <span class="label">Animation</span>
       <label class="check"><input type="checkbox" id="animated" checked> Animated loop</label>
       <div class="row" id="len-row"><label for="len">Length</label><input type="range" id="len" min="1" max="15" step="0.5" value="4"><output id="len-out" for="len">4.0 s</output></div>
@@ -169,7 +205,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <p class="hint">Loops are seamless and never longer than 15 seconds.</p>
     </div>
 
-    <div class="actions">
+    <div class="actions" id="t-make">
       <button type="button" class="btn primary" id="generate">Generate</button>
       <div class="pair">
         <button type="button" class="btn" id="surprise">Surprise me</button>
@@ -185,7 +221,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <div class="busy" id="busy" hidden><span id="busy-text">Rendering…</span><progress id="busy-prog" max="1" value="0"></progress></div>
       <div class="drop" id="drop" hidden>Drop to pixelate</div>
     </div>
-    <div class="bar">
+    <div class="bar" id="t-save">
       <div class="status" id="status" role="status" aria-live="polite">Ready.</div>
       <div class="btns">
         <button type="button" class="btn" id="copy">Copy</button>
@@ -195,13 +231,58 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       </div>
       <p class="savenote" id="savenote" hidden>Saving files isn't available in this view. Copy still works, and the shelf below keeps your GIFs.</p>
     </div>
-    <section class="shelf" aria-label="Your GIFs">
+    <section class="shelf" id="t-shelf" aria-label="Your GIFs">
       <header><b>Your GIFs</b><span id="shelf-count">0</span><span>Saved in this browser. Click one to open it again.</span></header>
       <div class="strip" id="strip"><p class="empty" id="shelf-empty">Every animated loop you generate lands here as its own GIF, with its own Copy and Save buttons.</p></div>
     </section>
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="menu" id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+  <canvas id="menu-bg" width="160" height="90" aria-hidden="true"></canvas>
+  <div class="menu-card">
+    <h2 id="menu-title">RPG</h2>
+    <p class="tag">Random Pixel / Picture Generator</p>
+    <div class="menu-list">
+      <button type="button" class="btn primary" id="m-start">▶&nbsp; Start creating</button>
+      <button type="button" class="btn" id="m-surprise">🎲 Surprise me <span class="k">S</span></button>
+      <button type="button" class="btn" id="m-tour">📖 How to use <span class="k">?</span></button>
+      <button type="button" class="btn" id="m-gifs">🖼️ Your GIFs <span class="k" id="m-gifcount">0</span></button>
+      <button type="button" class="btn" id="m-settings">⚙️ Settings</button>
+    </div>
+    <p class="menu-foot">Forests, trees, beaches, waterfalls, landscapes and 3D islands, as looping pixel art.</p>
+  </div>
+</div>
+<div class="settings-wrap" id="settings" hidden>
+  <div class="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <header><h3 id="settings-title">Settings</h3><button type="button" class="btn" id="settings-close" aria-label="Close settings">✕</button></header>
+    <p class="hint">Everything you change in RPG saves automatically in this browser.</p>
+    <fieldset><legend>Start</legend>
+      <label class="check"><input type="checkbox" id="p-menu"> Show the main menu when RPG opens</label>
+      <button type="button" class="btn" id="p-tour">Show the tutorial</button>
+    </fieldset>
+    <fieldset><legend>Saving</legend>
+      <label class="check"><input type="checkbox" id="p-gifs"> Save every animated loop to Your GIFs</label>
+      <div class="row"><label for="p-gifw">GIF size</label><select id="p-gifw"><option value="320">Small · 320 wide</option><option value="640">Medium · 640 wide</option><option value="1280">Large · 1280 wide</option></select></div>
+      <div class="danger-row"><button type="button" class="btn" id="p-delall">Delete all GIFs…</button>
+        <span class="confirm" id="p-delall-confirm" hidden>Sure? <button type="button" class="btn danger" id="p-delall-yes">Delete</button><button type="button" class="btn" id="p-delall-no">Keep</button></span></div>
+    </fieldset>
+    <fieldset><legend>Look</legend>
+      <label class="check"><input type="checkbox" id="p-icon"> Animated tab icon (the cloud drifts)</label>
+    </fieldset>
+    <div class="danger-row"><button type="button" class="btn" id="p-reset">Reset all settings…</button>
+      <span class="confirm" id="p-reset-confirm" hidden>Your GIFs are kept. <button type="button" class="btn danger" id="p-reset-yes">Reset</button><button type="button" class="btn" id="p-reset-no">Cancel</button></span></div>
+  </div>
+</div>
+<div class="tour-spot" id="tour-spot" hidden></div>
+<div class="tour-card" id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" hidden>
+  <h3 id="tour-title"></h3>
+  <p id="tour-text"></p>
+  <div class="tour-nav"><span class="dots" id="tour-dots"></span>
+    <button type="button" class="btn" id="tour-skip">Skip</button>
+    <button type="button" class="btn" id="tour-back">Back</button>
+    <button type="button" class="btn primary" id="tour-next">Next</button></div>
+</div>
 
 <script>
 "use strict";
@@ -1455,17 +1536,38 @@ if (typeof document !== 'undefined') (function app() {
     let dbp = null;
     const open = () => dbp || (dbp = new Promise((res, rej) => {
       if (typeof indexedDB === 'undefined') return rej(new Error('no indexedDB'));
-      const r = indexedDB.open('rpg', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('shelf', { keyPath: 'id' });
+      const r = indexedDB.open('rpg', 2);
+      r.onupgradeneeded = () => {
+        if (!r.result.objectStoreNames.contains('shelf')) r.result.createObjectStore('shelf', { keyPath: 'id' });
+        if (!r.result.objectStoreNames.contains('misc')) r.result.createObjectStore('misc');
+      };
       r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
     }));
-    const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('shelf', mode); const out = fn(t.objectStore('shelf')); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); };
+    const tx = async (mode, fn, store = 'shelf') => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction(store, mode); const out = fn(t.objectStore(store)); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); };
     return {
       all: () => tx('readonly', st => st.getAll()),
       put: rec => tx('readwrite', st => st.put(rec)),
       del: id => tx('readwrite', st => st.delete(id)),
+      clear: () => tx('readwrite', st => st.clear()),
+      getMisc: k => tx('readonly', st => st.get(k), 'misc'),
+      setMisc: (k, v) => tx('readwrite', st => st.put(v, k), 'misc'),
     };
   })();
+  // ---------- settings + auto-save (every edit is kept in this browser) ----------
+  const PREF_DEFAULTS = { showMenu: true, animIcon: true, autoGifs: true, gifWidth: 640 };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  };
+  const prefs = Object.assign({}, PREF_DEFAULTS, store.get('rpg.prefs', {}));
+  const savePrefs = () => store.set('rpg.prefs', prefs);
+  const STATE_KEYS = ['mode', 'theme2d', 'scene3d', 'size', 'seed', 'animated', 'duration', 'fps', 'parallax', 'colors', 'effect'];
+  let restoring = true;
+  function saveState() {
+    if (restoring) return;
+    const o = {}; for (const k of STATE_KEYS) o[k] = state[k];
+    store.set('rpg.state', o);
+  }
   const record = it => ({ id: it.id, blob: it.blob, name: it.name, filename: it.filename, snap: it.snap, created: it.created });
   async function loadShelf() {
     try {
@@ -1548,6 +1650,7 @@ if (typeof document !== 'undefined') (function app() {
   });
 
   function syncUI() {
+    saveState();
     document.querySelectorAll('#mode-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
     document.querySelectorAll('#px-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.size === state.size)));
     document.querySelectorAll('#fps-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.fps === state.fps)));
@@ -1618,7 +1721,7 @@ if (typeof document !== 'undefined') (function app() {
     if (item) { e.preventDefault(); loadPhoto(item.getAsFile()); }
   });
   async function loadPhoto(file) {
-    try { state.photo = await createImageBitmap(file); }
+    try { state.photo = await createImageBitmap(file); idb.setMisc('photo', file).catch(() => {}); }
     catch (e) { toast("Couldn't read that picture. Try a PNG or JPG."); return; }
     state.mode = 'Photo'; syncUI(); render();
   }
@@ -1636,6 +1739,7 @@ if (typeof document !== 'undefined') (function app() {
   // ---------- rendering ----------
   async function render(opts = {}) {
     const gen = ++state.gen;
+    saveState();
     const snap = { mode: state.mode, theme2d: state.theme2d, scene3d: state.scene3d, size: state.size, seed: state.seed,
       duration: state.duration, fps: state.fps, parallax: state.parallax, colors: state.colors, effect: state.effect, animated: state.animated };
     const [, w, h] = SIZES[state.size];
@@ -1680,20 +1784,104 @@ if (typeof document !== 'undefined') (function app() {
     else if (n > 1) makeShelfGif(gen, frames, fps, name, snap);
   }
 
+  // ---------- main menu ----------
+  let menuOpen = true;
+  const menuBg = $('menu-bg'), mctx = menuBg.getContext('2d');
+  function drawMenuBg() {
+    if (menuBg.width !== view.width || menuBg.height !== view.height) { menuBg.width = view.width; menuBg.height = view.height; }
+    mctx.drawImage(view, 0, 0);
+  }
+  function openMenu() {
+    menuOpen = true; $('menu').hidden = false; $('m-gifcount').textContent = shelf.length; drawMenuBg();
+    $('m-start').focus();
+  }
+  function closeMenu(then) {
+    menuOpen = false; $('menu').hidden = true;
+    if (then) then();
+    else if (!seen()) startTour();
+  }
+  const seen = () => { try { return localStorage.getItem('rpg.tourSeen') === '1'; } catch (e) { return true; } };
+  const markSeen = () => { try { localStorage.setItem('rpg.tourSeen', '1'); } catch (e) {} };
+  $('m-start').addEventListener('click', () => closeMenu());
+  $('m-surprise').addEventListener('click', () => closeMenu(() => { surprise(); if (!seen()) startTour(); }));
+  $('m-tour').addEventListener('click', () => closeMenu(startTour));
+  $('m-gifs').addEventListener('click', () => closeMenu(() => { $('t-shelf').scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+  $('open-menu').addEventListener('click', openMenu);
+  $('open-tour').addEventListener('click', startTour);
+
+  // ---------- tutorial ----------
+  const TOUR = [
+    { el: 't-mode', title: '1 · Pick what to make', text: '2D makes scenes like forests, big trees, beaches and waterfalls. 3D flies over land or circles an island. Photo turns your own picture into pixel art. Choose a scene from the list below.' },
+    { el: 't-pixels', title: '2 · Big or small pixels', text: 'Huge gives chunky, blocky pixels. Tiny gives lots of detail. Change it any time and the picture redraws.' },
+    { el: 't-anim', title: '3 · Make it move', text: 'Loops are seamless and up to 15 seconds long. Turn off "Animated loop" for a still picture.' },
+    { el: 't-make', title: '4 · Generate', text: 'Generate makes a brand new picture. Surprise me picks everything at random. Shortcuts: G and S.' },
+    { el: 't-shelf', title: '5 · Your GIFs', text: 'Every loop is saved here. Click one to open it again. Click its name ✎ to rename it, emojis too 🌲✨.' },
+    { el: 't-save', title: '6 · Save and share', text: 'Copy, or save as a PNG picture, a GIF, or a video. That\'s it, have fun!' },
+  ];
+  let tourAt = -1;
+  function placeTour() {
+    const step = TOUR[tourAt], target = $(step.el), spot = $('tour-spot'), card = $('tour-card');
+    const r = target.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (r.height + pad * 2) + 'px' });
+    const cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight, gap = 14;
+    let left, top;
+    if (r.right + gap + cw <= vw - 16) { left = r.right + gap; top = r.top; }               // to the right
+    else if (r.bottom + gap + ch <= vh - 16) { left = r.left; top = r.bottom + gap; }       // below
+    else if (r.top - gap - ch >= 16) { left = r.left; top = r.top - gap - ch; }             // above
+    else { left = (vw - cw) / 2; top = vh - ch - 16; }                                      // pinned to bottom
+    card.style.left = Math.max(16, Math.min(left, vw - cw - 16)) + 'px';
+    card.style.top = Math.max(16, Math.min(top, vh - ch - 16)) + 'px';
+  }
+  function showStep(i) {
+    tourAt = i; const step = TOUR[i];
+    $('tour-title').textContent = step.title; $('tour-text').textContent = step.text;
+    $('tour-dots').textContent = (i + 1) + ' / ' + TOUR.length;
+    $('tour-back').hidden = i === 0; $('tour-next').textContent = i === TOUR.length - 1 ? 'Done' : 'Next';
+    $('tour-spot').hidden = false; $('tour-card').hidden = false;
+    $(step.el).scrollIntoView({ block: 'nearest' });
+    requestAnimationFrame(placeTour);
+    $('tour-next').focus();
+  }
+  function startTour() { if (menuOpen) { menuOpen = false; $('menu').hidden = true; } showStep(0); }
+  function endTour() { tourAt = -1; $('tour-spot').hidden = true; $('tour-card').hidden = true; markSeen(); }
+  $('tour-next').addEventListener('click', () => tourAt < TOUR.length - 1 ? showStep(tourAt + 1) : endTour());
+  $('tour-back').addEventListener('click', () => tourAt > 0 && showStep(tourAt - 1));
+  $('tour-skip').addEventListener('click', endTour);
+  addEventListener('resize', () => { if (tourAt >= 0) placeTour(); });
+  addEventListener('scroll', () => { if (tourAt >= 0) placeTour(); }, true);
+  document.addEventListener('keydown', e => {
+    if (!$('settings').hidden) {
+      if (e.key === 'Escape') { e.preventDefault(); $('settings').hidden = true; }
+      e.stopImmediatePropagation(); return;
+    }
+    if (tourAt >= 0) {
+      if (e.key === 'Escape') { e.preventDefault(); endTour(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); $('tour-next').click(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); $('tour-back').click(); }
+      e.stopImmediatePropagation(); return;
+    }
+    if (menuOpen) {
+      if (e.key === 'Escape' || e.key === 'Enter' && e.target === document.body) { e.preventDefault(); closeMenu(); }
+      else if (e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); $('m-surprise').click(); }
+      e.stopImmediatePropagation(); return;
+    }
+    if (e.key === '?' ) { e.preventDefault(); startTour(); }
+  }, true);
+
   // playback
   let shown = -1;
   function tick(now) {
     const f = state.frames;
     if (f.length > 1) {
       const i = Math.floor(now / 1000 * state.frameFps) % f.length;
-      if (i !== shown) { vctx.putImageData(f[i], 0, 0); shown = i; }
+      if (i !== shown) { vctx.putImageData(f[i], 0, 0); shown = i; if (menuOpen) drawMenuBg(); }
     }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 
   // ---------- GIF shelf ----------
-  const gifScale = w => Math.max(1, Math.round(640 / w));
+  const gifScale = w => Math.max(1, Math.round((prefs.gifWidth || 640) / w));
   async function makeShelfGif(gen, frames, fps, name, snap) {
     let last = performance.now();
     const bytes = await encodeGIF(frames, fps, gifScale(frames[0].width), async frac => {
@@ -1702,6 +1890,10 @@ if (typeof document !== 'undefined') (function app() {
     const blob = new Blob([bytes], { type: 'image/gif' });
     const item = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 8), blob, url: URL.createObjectURL(blob), name,
       filename: fileName(name, 'gif'), snap, created: Date.now(), photo: snap.mode === 'Photo' ? state.photo : null };
+    if (!prefs.autoGifs) {                       // kept for Copy / Save, not added to Your GIFs
+      if (gen === state.gen) { state.currentGif = item; status(`${state.sceneName} · ${frames.length} frames · GIF ready`); }
+      return;
+    }
     idb.put(record(item)).catch(() => {});
     shelf.unshift(item);
     while (shelf.length > SHELF_MAX) { const old = shelf.pop(); URL.revokeObjectURL(old.url); idb.del(old.id).catch(() => {}); }
@@ -1898,9 +2090,58 @@ if (typeof document !== 'undefined') (function app() {
     saveFile(fileName(state.sceneName, ext), blob);
   }
 
+  // ---------- settings dialog ----------
+  function openSettings() {
+    $('p-menu').checked = prefs.showMenu; $('p-gifs').checked = prefs.autoGifs; $('p-icon').checked = prefs.animIcon;
+    $('p-gifw').value = String(prefs.gifWidth);
+    $('p-delall-confirm').hidden = true; $('p-reset-confirm').hidden = true;
+    $('settings').hidden = false; $('settings-close').focus();
+  }
+  const closeSettings = () => { $('settings').hidden = true; };
+  $('open-settings').addEventListener('click', openSettings);
+  $('m-settings').addEventListener('click', () => { menuOpen = false; $('menu').hidden = true; openSettings(); });
+  $('settings-close').addEventListener('click', closeSettings);
+  $('settings').addEventListener('click', e => { if (e.target.id === 'settings') closeSettings(); });
+  $('settings').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeSettings(); } });
+  $('p-menu').addEventListener('change', e => { prefs.showMenu = e.target.checked; savePrefs(); });
+  $('p-gifs').addEventListener('change', e => { prefs.autoGifs = e.target.checked; savePrefs(); });
+  $('p-icon').addEventListener('change', e => { prefs.animIcon = e.target.checked; savePrefs(); });
+  $('p-gifw').addEventListener('change', e => { prefs.gifWidth = +e.target.value; savePrefs(); toast('New GIFs will be ' + prefs.gifWidth + ' pixels wide.'); });
+  $('p-tour').addEventListener('click', () => { closeSettings(); startTour(); });
+  $('p-delall').addEventListener('click', () => { $('p-delall-confirm').hidden = false; });
+  $('p-delall-no').addEventListener('click', () => { $('p-delall-confirm').hidden = true; });
+  $('p-delall-yes').addEventListener('click', () => {
+    for (const it of shelf) URL.revokeObjectURL(it.url);
+    shelf.length = 0; state.currentGif = null; idb.clear().catch(() => {}); renderShelf();
+    $('p-delall-confirm').hidden = true; toast('All GIFs deleted.');
+  });
+  $('p-reset').addEventListener('click', () => { $('p-reset-confirm').hidden = false; });
+  $('p-reset-no').addEventListener('click', () => { $('p-reset-confirm').hidden = true; });
+  $('p-reset-yes').addEventListener('click', () => {
+    Object.assign(prefs, PREF_DEFAULTS); savePrefs();
+    Object.assign(state, { mode: '2D', theme2d: 'random', scene3d: 'flyover', size: 2, animated: true, duration: 4, fps: 12, parallax: true, colors: 24, effect: 'sparkle' });
+    $('colors').value = '24'; $('effect').value = 'sparkle';
+    closeSettings(); toast('Settings reset.'); generate();
+  });
+
+  // ---------- restore the last session ----------
+  (function restore() {
+    const saved = store.get('rpg.state', null);
+    if (saved) for (const k of STATE_KEYS) if (saved[k] !== undefined) state[k] = saved[k];
+    state.duration = Math.min(15, Math.max(1, +state.duration || 4));
+    $('colors').value = String(state.colors); $('effect').value = state.effect;
+    if (!prefs.showMenu) { menuOpen = false; $('menu').hidden = true; if (!seen()) setTimeout(startTour, 300); }
+  })();
+  restoring = false;
   syncUI();
   loadShelf();
-  render();
+  if (state.mode === 'Photo') {
+    idb.getMisc('photo').then(async blob => {
+      if (blob) { try { state.photo = await createImageBitmap(blob); } catch (e) {} }
+      if (!state.photo) { state.mode = '2D'; syncUI(); }
+      render();
+    }).catch(() => { state.mode = '2D'; syncUI(); render(); });
+  } else render();
 })();
 </script>
 
@@ -1912,8 +2153,11 @@ if (typeof document !== 'undefined') (function app() {
   const link = document.querySelector('link[rel="icon"][sizes="32x32"]') || document.querySelector('link[rel="icon"]');
   if (!link || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let i = 0;
+  const still = link.href;
+  const on = () => { try { return JSON.parse(localStorage.getItem('rpg.prefs') || '{}').animIcon !== false; } catch (e) { return true; } };
   sheet.onload = () => setInterval(() => {
     if (document.hidden) return;
+    if (!on()) { if (link.href !== still) link.href = still; return; }
     x.clearRect(0, 0, S, S); x.drawImage(sheet, i * S, 0, S, S, 0, 0, S, S);
     link.href = c.toDataURL('image/png'); i = (i + 1) % N;
   }, 125);
