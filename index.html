@@ -53,6 +53,9 @@ body { background: var(--bg); color: var(--fg); font-family: var(--body); font-s
 .settings legend { padding: 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .danger-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.about-body { display: grid; justify-items: center; text-align: center; gap: 10px; }
+.about-body img { border-radius: 22px; image-rendering: auto; }
+.about-made { margin: 0; font: 700 24px/1.25 var(--display); color: var(--fg); }
 .btn.danger { background: var(--danger); color: #1a0806; border-color: var(--danger); }
 /* ---- main menu ---- */
 .menu { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: var(--screen); overflow: auto;
@@ -147,7 +150,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
   <aside class="side" aria-label="Generator settings">
     <div class="brand">
       <div class="brand-top"><h1>RPG</h1>
-        <span class="brand-btns"><button type="button" class="btn" id="open-menu">☰ Menu</button><button type="button" class="btn" id="open-tour" aria-label="How to use RPG">?</button><button type="button" class="btn" id="open-settings" aria-label="Settings">⚙</button></span></div>
+        <span class="brand-btns"><button type="button" class="btn" id="open-menu">☰ Menu</button><button type="button" class="btn" id="open-tour" aria-label="How to use RPG">?</button><button type="button" class="btn" id="open-settings" aria-label="Settings">⚙</button><button type="button" class="btn" id="open-about" aria-label="About RPG">ℹ︎</button></span></div>
       <p>Random Pixel / Picture Generator · <a href="gallery/" style="color:var(--accent)">Gallery</a></p>
       <p class="saved" id="saved-note">✓ Changes save automatically</p>
     </div>
@@ -249,8 +252,9 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <button type="button" class="btn" id="m-tour">📖 How to use <span class="k">?</span></button>
       <button type="button" class="btn" id="m-gifs">🖼️ Your GIFs <span class="k" id="m-gifcount">0</span></button>
       <button type="button" class="btn" id="m-settings">⚙️ Settings</button>
+      <button type="button" class="btn" id="m-about">ℹ️ About</button>
     </div>
-    <p class="menu-foot">Forests, trees, beaches, waterfalls, landscapes and 3D islands, as looping pixel art.</p>
+    <p class="menu-foot">Forests, trees, beaches, waterfalls, landscapes and 3D islands, as looping pixel art.<br>Made by Vincent, for GIF use and loops.</p>
   </div>
 </div>
 <div class="settings-wrap" id="settings" hidden>
@@ -272,6 +276,17 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
     </fieldset>
     <div class="danger-row"><button type="button" class="btn" id="p-reset">Reset all settings…</button>
       <span class="confirm" id="p-reset-confirm" hidden>Your GIFs are kept. <button type="button" class="btn danger" id="p-reset-yes">Reset</button><button type="button" class="btn" id="p-reset-no">Cancel</button></span></div>
+  </div>
+</div>
+<div class="settings-wrap" id="about" hidden>
+  <div class="settings about" role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <header><h3 id="about-title">About RPG</h3><button type="button" class="btn" id="about-close" aria-label="Close">✕</button></header>
+    <div class="about-body">
+      <img src="icon-192.png" alt="" width="96" height="96" onerror="this.remove()">
+      <p class="about-made">Made by Vincent,<br>for GIF use and loops.</p>
+      <p class="hint">RPG means Random Pixel / Picture Generator. It makes seamless looping pixel art (forests, trees, beaches, waterfalls, landscapes and 3D islands) that you can save as GIFs, pictures or videos.</p>
+      <p class="hint">Loops up to 15 seconds · works on Mac, Chromebook and phones.</p>
+    </div>
   </div>
 </div>
 <div class="tour-spot" id="tour-spot" hidden></div>
@@ -475,9 +490,10 @@ function landscape(theme, s) {
   const waterColor = theme === 'night' ? [0.03, 0.05, 0.15] : mix(mix(top, deep, 0.35), [0.1, 0.35, 0.5], 0.3);
 
   const layers = [];
+  const mountains = theme === 'desert' || rng.chance(0.35);   // otherwise soft rolling hills
   for (let i = 0; i < 4; i++) {
     const fi = i / 3, haze = (1 - fi) * 0.65, base = land[i];
-    let ls = i < 2 ? 'mountain' : 'hill';
+    let ls = i < 2 && mountains ? 'mountain' : 'hill';
     if (theme === 'desert') ls = i === 0 ? 'mountain' : shape;
     if (theme === 'ocean' && i < 3) ls = 'hill';
     let b, amp;
@@ -1035,7 +1051,8 @@ function terrain3D(mode, s) {
   const seed = rng.next() | 0;
   const tod = rng.pick(['day', 'golden', 'dusk', 'night']);
   const night = tod === 'night';
-  const mountainous = rng.range(0.3, 1);
+  const mountainous = rng.range(0.0, 0.65);   // mostly hills, valleys and lakes
+  const flatten = mode === 'flyover' ? rng.range(0.5, 0.8) : 1;
   const water = mode === 'orbit' ? rng.range(0.18, 0.28) : rng.range(0.12, 0.32);
   const cloudSeed = rng.next() | 0, cloudCover = rng.range(0.35, 0.7);
   const cloudCycles = s.duration >= 8 ? 1 : 0;
@@ -1056,7 +1073,7 @@ function terrain3D(mode, s) {
     const base = Noise.fbm2D(u, v, 4, 6, seed);
     const rdg = Noise.fbm2D(u, v, 3, 5, (seed + 5) | 0, true);
     let hg = base * (1 - mountainous * 0.6) + rdg * mountainous * 0.6;
-    hg = Math.pow(hg, 1.6) * 1.5;
+    hg = Math.pow(hg, 1.6) * 1.5 * flatten;
     if (mode === 'orbit') {
       const dx = u - 0.5, dy = v - 0.5, d = Math.sqrt(dx * dx + dy * dy) * 2.4;
       hg = hg * Math.max(0, 1 - d * d) * 1.4 + Math.max(0, 0.15 - d * 0.1);
@@ -1065,7 +1082,7 @@ function terrain3D(mode, s) {
   }
   const lx = Math.cos(sunAz) * Math.cos(sunEl), ly = Math.sin(sunAz) * Math.cos(sunEl), lz = Math.sin(sunEl);
   const cs = new Array(N * N);
-  const snowLine = rng.range(0.62, 0.8);
+  const snowLine = rng.range(0.72, 0.9);
   const grass = rng.chance(0.2) ? [0.55, 0.55, 0.25] : [0.30, 0.55, 0.22];
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const hg = hs[y * N + x];
@@ -1561,7 +1578,7 @@ if (typeof document !== 'undefined') (function app() {
   };
   const prefs = Object.assign({}, PREF_DEFAULTS, store.get('rpg.prefs', {}));
   const savePrefs = () => store.set('rpg.prefs', prefs);
-  const STATE_KEYS = ['mode', 'theme2d', 'scene3d', 'size', 'seed', 'animated', 'duration', 'fps', 'parallax', 'colors', 'effect'];
+  const STATE_KEYS = ['mode', 'theme2d', 'resolved2d', 'scene3d', 'size', 'seed', 'animated', 'duration', 'fps', 'parallax', 'colors', 'effect'];
   let restoring = true;
   function saveState() {
     if (restoring) return;
@@ -1693,16 +1710,27 @@ if (typeof document !== 'undefined') (function app() {
     else if (k === 'c') { e.preventDefault(); copyCurrent(); }
   });
 
+  // "Random" scene: nature 3× as likely as landscapes, never one of the last few picks
+  const recentPicks = [];
+  function pickRandom2D() {
+    const bag = [];
+    for (const [k, sc] of Object.entries(SCENES)) if (sc.group === '2D') for (let i = 0; i < (sc.cat === 'Nature' ? 3 : 1); i++) bag.push(k);
+    const fresh = bag.filter(k => !recentPicks.includes(k));
+    const pool = fresh.length ? fresh : bag, pick = pool[Math.floor(Math.random() * pool.length)];
+    recentPicks.push(pick); if (recentPicks.length > 4) recentPicks.shift();
+    return pick;
+  }
   function generate() {
-    state.seed = 1 + Math.floor(Math.random() * 999999); syncUI();
+    state.seed = 1 + Math.floor(Math.random() * 999999);
+    if (state.mode === '2D' && state.theme2d === 'random') state.resolved2d = pickRandom2D();
+    syncUI();
     if (state.mode === 'Photo' && !state.photo) { $('photo-file').click(); return; }
     render();
   }
   function surprise() {
-    state.mode = Math.random() < 0.55 ? '2D' : '3D';
-    const keys = Object.keys(SCENES).filter(k => SCENES[k].group === state.mode);
-    const pick = keys[Math.floor(Math.random() * keys.length)];
-    if (state.mode === '2D') state.theme2d = pick; else state.scene3d = pick;
+    state.mode = Math.random() < 0.75 ? '2D' : '3D';
+    if (state.mode === '2D') { state.theme2d = 'random'; state.resolved2d = pickRandom2D(); }
+    else { const keys = Object.keys(SCENES).filter(k => SCENES[k].group === '3D'); state.scene3d = keys[Math.floor(Math.random() * keys.length)]; }
     state.parallax = Math.random() < 0.6;
     state.seed = 1 + Math.floor(Math.random() * 999999);
     syncUI(); render();
@@ -1740,7 +1768,7 @@ if (typeof document !== 'undefined') (function app() {
   async function render(opts = {}) {
     const gen = ++state.gen;
     saveState();
-    const snap = { mode: state.mode, theme2d: state.theme2d, scene3d: state.scene3d, size: state.size, seed: state.seed,
+    const snap = { mode: state.mode, theme2d: state.theme2d, resolved2d: state.resolved2d, scene3d: state.scene3d, size: state.size, seed: state.seed,
       duration: state.duration, fps: state.fps, parallax: state.parallax, colors: state.colors, effect: state.effect, animated: state.animated };
     const [, w, h] = SIZES[state.size];
     const settings = { w, h, seed: state.seed, duration: Math.min(15, state.duration), parallax: state.parallax };
@@ -1752,7 +1780,7 @@ if (typeof document !== 'undefined') (function app() {
       name = 'Photo · ' + $('effect').selectedOptions[0].textContent;
     } else {
       let key = state.mode === '2D' ? state.theme2d : state.scene3d;
-      if (key === 'random') { const keys = Object.keys(SCENES).filter(k => SCENES[k].group === '2D'); key = keys[state.seed % keys.length]; }
+      if (key === 'random') { if (!SCENES[state.resolved2d]) state.resolved2d = pickRandom2D(); key = state.resolved2d; }
       const entry = SCENES[key];
       busy(true, 'Building scene…', 0); await yieldUI(); if (gen !== state.gen) return;
       scene = entry.make(settings);
@@ -1850,6 +1878,10 @@ if (typeof document !== 'undefined') (function app() {
   addEventListener('resize', () => { if (tourAt >= 0) placeTour(); });
   addEventListener('scroll', () => { if (tourAt >= 0) placeTour(); }, true);
   document.addEventListener('keydown', e => {
+    if (!$('about').hidden) {
+      if (e.key === 'Escape') { e.preventDefault(); $('about').hidden = true; }
+      e.stopImmediatePropagation(); return;
+    }
     if (!$('settings').hidden) {
       if (e.key === 'Escape') { e.preventDefault(); $('settings').hidden = true; }
       e.stopImmediatePropagation(); return;
@@ -1908,7 +1940,9 @@ if (typeof document !== 'undefined') (function app() {
   async function openShelfItem(item) {
     const s = item.snap;
     if (s && (s.mode !== 'Photo' || item.photo)) {
-      Object.assign(state, { mode: s.mode, theme2d: s.theme2d, scene3d: s.scene3d, size: s.size, seed: s.seed, duration: s.duration,
+      // GIFs saved before "resolved2d" existed picked their scene from the seed
+      const legacy = () => { const ks = Object.keys(SCENES).filter(k => SCENES[k].group === '2D'); return ks[s.seed % ks.length]; };
+      Object.assign(state, { mode: s.mode, theme2d: s.theme2d, resolved2d: s.resolved2d || (s.theme2d === 'random' ? legacy() : undefined), scene3d: s.scene3d, size: s.size, seed: s.seed, duration: s.duration,
         fps: s.fps, parallax: s.parallax, colors: s.colors, effect: s.effect, animated: true });
       if (s.mode === 'Photo') state.photo = item.photo;
       $('colors').value = String(s.colors); $('effect').value = s.effect;
@@ -2123,6 +2157,14 @@ if (typeof document !== 'undefined') (function app() {
     $('colors').value = '24'; $('effect').value = 'sparkle';
     closeSettings(); toast('Settings reset.'); generate();
   });
+
+  // ---------- about ----------
+  const openAbout = () => { menuOpen = false; $('menu').hidden = true; $('about').hidden = false; $('about-close').focus(); };
+  const closeAbout = () => { $('about').hidden = true; };
+  $('open-about').addEventListener('click', openAbout);
+  $('m-about').addEventListener('click', openAbout);
+  $('about-close').addEventListener('click', closeAbout);
+  $('about').addEventListener('click', e => { if (e.target.id === 'about') closeAbout(); });
 
   // ---------- restore the last session ----------
   (function restore() {
