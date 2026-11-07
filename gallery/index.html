@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121119">
+<link rel="icon" href="../icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<title>RPG Loop Gallery</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: a dark "CRT shelf" — one intro line, then a responsive grid of looping cartridges grouped 2D / 3D */
+:root {
+  --bg: #12111a;
+  --panel: #1c1a27;
+  --fg: #ecebf3;
+  --muted: #9a97ad;
+  --accent: #ffb547;
+  --line: #2c2a3b;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 40px; }
+header { display: grid; gap: 10px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(40px, 7vw, 64px); line-height: 1; margin: 0; letter-spacing: 0.02em; color: var(--accent); text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 62ch; }
+.sub a { color: var(--accent); }
+h2 { font-family: var(--display); font-weight: 500; font-size: 22px; margin: 0; display: flex; gap: 12px; align-items: baseline; }
+h2 small { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+section { display: grid; gap: 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; display: grid; }
+figure img { display: block; width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; background: #000; }
+figcaption { padding: 10px 14px 12px; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 2px; align-items: center; min-width: 0; }
+figcaption b, figcaption span { grid-column: 1; min-width: 0; }
+.copy { grid-column: 2; grid-row: 1 / span 2; font: 500 13px var(--body); color: var(--bg); background: var(--accent); border: 0; border-radius: 4px; padding: 7px 14px; cursor: pointer; }
+.copy:hover { filter: brightness(1.08); }
+.copy:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.copy.done { background: var(--fg); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+@media (prefers-reduced-motion: no-preference) { .copy { transition: background .15s; } }
+figcaption b { font-weight: 500; }
+figcaption span { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>RPG</h1>
+    <p class="sub">Random Pixel / Picture Generator. Every clip below is a seamless 4-second loop rendered by the Mac app and saved straight from its GIF export. <a href="../">Make your own in the browser</a>, on a Chromebook or any computer.</p>
+  </header>
+
+  <section>
+    <h2>Nature <small>160 × 90 PIXELS · 12 FPS</small></h2>
+    <div class="grid">
+      <figure><img src="nature-forest.gif" alt="Pixel-art forest with light rays and mushrooms"><figcaption><b>Forest</b><span>light shafts · floating motes</span></figcaption></figure>
+      <figure><img src="nature-big-tree.gif" alt="A big green tree swaying on a meadow"><figcaption><b>Big Tree</b><span>swaying branches</span></figcaption></figure>
+      <figure><img src="nature-autumn-tree.gif" alt="An orange autumn tree dropping leaves"><figcaption><b>Autumn Tree</b><span>falling leaves</span></figcaption></figure>
+      <figure><img src="nature-cherry-blossom.gif" alt="A pink cherry blossom tree with drifting petals"><figcaption><b>Cherry Blossom</b><span>drifting petals</span></figcaption></figure>
+      <figure><img src="nature-flower-field.gif" alt="A flower field waving in the wind with butterflies"><figcaption><b>Flower Field</b><span>wind waves · butterflies</span></figcaption></figure>
+      <figure><img src="nature-tropical-beach.gif" alt="A tropical beach with palm trees and waves"><figcaption><b>Tropical Beach</b><span>waves · palm trees</span></figcaption></figure>
+      <figure><img src="nature-waterfall.gif" alt="A waterfall pouring into a pool between cliffs"><figcaption><b>Waterfall</b><span>falling water · mist</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>2D landscapes <small>160 × 90 PIXELS · 12 FPS</small></h2>
+    <div class="grid">
+      <figure><img src="2d-meadow.gif" alt="Pixel-art meadow with snowy mountains and a lake"><figcaption><b>Meadow</b><span>parallax hills · lake reflection</span></figcaption></figure>
+      <figure><img src="2d-sunset.gif" alt="Pixel-art sunset over mountains"><figcaption><b>Sunset</b><span>low sun · drifting clouds</span></figcaption></figure>
+      <figure><img src="2d-night.gif" alt="Pixel-art night with crescent moon and stars"><figcaption><b>Night</b><span>twinkling stars · fireflies</span></figcaption></figure>
+      <figure><img src="2d-ocean.gif" alt="Pixel-art ocean with forested islands"><figcaption><b>Ocean</b><span>rippling water · birds</span></figcaption></figure>
+      <figure><img src="2d-desert.gif" alt="Pixel-art desert with mesas and cacti"><figcaption><b>Desert</b><span>mesas · cacti · blowing dust</span></figcaption></figure>
+      <figure><img src="2d-winter.gif" alt="Pixel-art winter scene with snowfall"><figcaption><b>Winter</b><span>snowfall · snowy pines</span></figcaption></figure>
+      <figure><img src="2d-alien-world.gif" alt="Pixel-art alien world with two moons and crystals"><figcaption><b>Alien World</b><span>two moons · glowing crystals</span></figcaption></figure>
+      <figure><img src="big-pixels-sunset.gif" alt="Sunset rendered with big chunky pixels"><figcaption><b>Sunset, big pixels</b><span>80 × 45 pixels</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>3D scenes <small>160 × 90 PIXELS · 12 FPS</small></h2>
+    <div class="grid">
+      <figure><img src="3d-flyover.gif" alt="3D pixel terrain flyover with fog"><figcaption><b>Flyover</b><span>endless terrain · aerial fog</span></figcaption></figure>
+      <figure><img src="3d-orbit.gif" alt="Camera orbiting a pixel mountain island"><figcaption><b>Orbit</b><span>360° around an island</span></figcaption></figure>
+      <figure><img src="3d-isometric.gif" alt="Isometric voxel island with trees and houses"><figcaption><b>Isometric</b><span>voxel diorama · animated water</span></figcaption></figure>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <footer>Each Copy button copies that GIF. Most browsers only allow copying still pictures, so if yours refuses the animated GIF you get its first frame instead. For animated copies, use the Copy button on the GIF shelf in the RPG app. Made with RPG for macOS.</footer>
+</div>
+<script>
+(function () {
+  var toast = document.getElementById('toast'), timer;
+  function say(msg) { toast.textContent = msg; toast.hidden = false; clearTimeout(timer); timer = setTimeout(function () { toast.hidden = true; }, 4200); }
+  function gifBlob(img) { return fetch(img.getAttribute('src')).then(function (r) { return r.blob(); }).then(function (b) { return new Blob([b], { type: 'image/gif' }); }); }
+  function pngBlob(img) {
+    return new Promise(function (res, rej) {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      var x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(img, 0, 0);
+      c.toBlob(function (b) { b ? res(b) : rej(new Error('no png')); }, 'image/png');
+    });
+  }
+  function canGif() { return typeof ClipboardItem !== 'undefined' && (!ClipboardItem.supports || ClipboardItem.supports('image/gif')); }
+  async function copy(img, btn, name) {
+    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') { say('This browser blocks copying pictures here. Use the Copy button in the RPG app instead.'); return; }
+    if (canGif()) {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/gif': gifBlob(img) })]); done(btn); say('Copied ' + name + ' as an animated GIF.'); return; } catch (e) {}
+    }
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob(img) })]); done(btn); say('Copied a still frame of ' + name + '. Your browser can\'t copy animated GIFs; the RPG app can.'); }
+    catch (e) { say('Copying was blocked on this page. Use the Copy button in the RPG app instead.'); }
+  }
+  function done(btn) { btn.textContent = 'Copied'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800); }
+  document.querySelectorAll('figure').forEach(function (fig, i) {
+    var img = fig.querySelector('img'), name = fig.querySelector('figcaption b').textContent;
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'copy'; btn.id = 'copy-' + i; btn.textContent = 'Copy';
+    btn.setAttribute('aria-label', 'Copy ' + name + ' GIF');
+    btn.addEventListener('click', function () { copy(img, btn, name); });
+    fig.querySelector('figcaption').appendChild(btn);
+  });
+})();
+</script>
+
+</body></html>

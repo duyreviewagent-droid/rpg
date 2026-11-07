@@ -1,0 +1,1783 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121119">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<title>RPG — Random Pixel Generator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="description" content="Make looping pixel-art GIFs of forests, trees, beaches, waterfalls, landscapes and 3D islands.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: tool shell — control column on the left, a dark "screen" with the looping preview on the right,
+   GIF shelf underneath. Stacks to one column under 760px. Deliberate single dark look. */
+:root {
+  --bg: #121119;
+  --panel: #1b1a25;
+  --panel-2: #24222f;
+  --line: #2f2c3d;
+  --fg: #ecebf3;
+  --muted: #9b98ae;
+  --accent: #ffb547;
+  --accent-ink: #1a1408;
+  --screen: #07070b;
+  --danger: #ff7a6b;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100%;
+  padding-left: max(0px, env(safe-area-inset-left, 0px)); padding-right: max(0px, env(safe-area-inset-right, 0px)); }
+.side { background: var(--panel); border-right: 1px solid var(--line); padding-block: 20px 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; min-width: 0; }
+.brand { display: grid; gap: 2px; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; color: var(--accent); letter-spacing: 0.03em; }
+.brand p { margin: 0; color: var(--muted); font-size: 12px; }
+.group { display: grid; gap: 8px; min-width: 0; }
+.group > .label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; flex-wrap: wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px; gap: 2px; }
+.seg button { flex: 1 1 0; min-width: 0; background: transparent; color: var(--fg); border: 0; border-radius: 4px; padding: 6px 4px; font: 500 13px var(--body); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--line); }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row > label { flex: none; }
+select, input[type="number"] { background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; font: 13px var(--body); min-width: 0; }
+select { width: 100%; }
+input[type="number"] { width: 100%; font-family: var(--mono); }
+input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+output { font-family: var(--mono); font-size: 12px; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.btn { background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: 500 13px var(--body); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:hover { background: var(--line); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 10px 12px; font-size: 14px; }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, label.check:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.actions { display: grid; gap: 8px; }
+.actions .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0; min-height: 100vh; min-height: 100dvh; }
+.stage { position: relative; background: var(--screen); display: grid; place-items: center; padding: 20px; min-height: 260px; }
+.stage canvas { display: block; width: 100%; max-width: 1100px; height: auto; aspect-ratio: 16 / 9; max-height: calc(100dvh - 300px); object-fit: contain; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.busy { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(27,26,37,.92); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; display: grid; gap: 8px; min-width: 220px; text-align: center; }
+.busy progress { width: 100%; accent-color: var(--accent); }
+.drop { position: absolute; inset: 10px; border: 3px dashed var(--accent); border-radius: 10px; display: grid; place-items: center; font: 700 24px var(--display); color: var(--accent); background: rgba(7,7,11,.6); pointer-events: none; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--panel); border-top: 1px solid var(--line); padding-block: 10px;
+  padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.status { flex: 1 1 260px; min-width: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.bar .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.savenote { flex-basis: 100%; color: var(--muted); font-size: 12px; margin: 0; }
+.shelf { background: var(--screen); border-top: 1px solid var(--line); padding-block: 10px 14px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 8px; min-width: 0; }
+.shelf header { display: flex; align-items: baseline; gap: 10px; }
+.shelf header b { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.shelf header span { color: var(--muted); font-size: 12px; }
+.strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; min-width: 0; }
+.item { flex: none; width: 168px; display: grid; gap: 6px; }
+.item img { width: 168px; height: 94.5px; image-rendering: pixelated; background: #000; border-radius: 4px; border: 2px solid transparent; object-fit: cover; }
+.item.current img { border-color: var(--accent); }
+.item .name { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.item .btn { padding: 4px 6px; font-size: 12px; }
+.empty { color: var(--muted); font-size: 12px; margin: 0; padding: 18px 0; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 20; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { min-height: 0; }
+  .stage { padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); }
+  .stage canvas { max-height: none; }
+}
+</style>
+
+<div class="app">
+  <aside class="side" aria-label="Generator settings">
+    <div class="brand">
+      <h1>RPG</h1>
+      <p>Random Pixel / Picture Generator · <a href="gallery/" style="color:var(--accent)">Gallery</a></p>
+    </div>
+
+    <div class="group">
+      <span class="label" id="lbl-mode">Mode</span>
+      <div class="seg" role="group" aria-labelledby="lbl-mode" id="mode-seg">
+        <button type="button" data-mode="2D" aria-pressed="true">2D</button>
+        <button type="button" data-mode="3D" aria-pressed="false">3D</button>
+        <button type="button" data-mode="Photo" aria-pressed="false">Photo</button>
+      </div>
+    </div>
+
+    <div class="group" id="g-2d">
+      <label class="label" for="theme2d">Scene</label>
+      <select id="theme2d"></select>
+      <label class="check"><input type="checkbox" id="parallax" checked> Parallax scrolling</label>
+    </div>
+
+    <div class="group" id="g-3d" hidden>
+      <label class="label" for="scene3d">Camera</label>
+      <select id="scene3d"></select>
+      <p class="hint" id="hint3d"></p>
+    </div>
+
+    <div class="group" id="g-photo" hidden>
+      <span class="label">Photo</span>
+      <button type="button" class="btn" id="pick-photo">Choose a picture…</button>
+      <input type="file" id="photo-file" accept="image/*" class="vh" tabindex="-1">
+      <p class="hint">Or drop / paste a picture onto the preview. It's turned into pixel art in your browser.</p>
+      <div class="row"><label for="colors">Colors</label><select id="colors"><option>8</option><option>12</option><option>16</option><option selected>24</option><option>32</option><option>48</option></select></div>
+      <div class="row"><label for="effect">Effect</label><select id="effect"><option value="sparkle">Sparkle</option><option value="drift">Camera drift</option><option value="snow">Snowfall</option><option value="rain">Rain</option></select></div>
+    </div>
+
+    <div class="group">
+      <span class="label" id="lbl-px">Pixel size</span>
+      <div class="seg" role="group" aria-labelledby="lbl-px" id="px-seg"></div>
+      <div class="ends"><span>Big pixels</span><span id="px-dims">160 × 90</span><span>Small pixels</span></div>
+    </div>
+
+    <div class="group">
+      <label class="label" for="seed">Seed</label>
+      <div class="row"><input type="number" id="seed" min="1" max="999999" step="1"><button type="button" class="btn" id="dice" aria-label="New random seed">New</button></div>
+    </div>
+
+    <div class="group">
+      <span class="label">Animation</span>
+      <label class="check"><input type="checkbox" id="animated" checked> Animated loop</label>
+      <div class="row" id="len-row"><label for="len">Length</label><input type="range" id="len" min="1" max="15" step="0.5" value="4"><output id="len-out" for="len">4.0 s</output></div>
+      <div class="seg" role="group" aria-label="Frame rate" id="fps-seg">
+        <button type="button" data-fps="8" aria-pressed="false">8 fps</button>
+        <button type="button" data-fps="12" aria-pressed="true">12 fps</button>
+        <button type="button" data-fps="24" aria-pressed="false">24 fps</button>
+      </div>
+      <p class="hint">Loops are seamless and never longer than 15 seconds.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="generate">Generate</button>
+      <div class="pair">
+        <button type="button" class="btn" id="surprise">Surprise me</button>
+        <button type="button" class="btn" id="rerender">Re-render</button>
+      </div>
+      <p class="hint">Shortcuts: G generate · S surprise · C copy</p>
+    </div>
+  </aside>
+
+  <main>
+    <div class="stage" id="stage">
+      <canvas id="view" width="160" height="90" aria-label="Generated pixel art preview" role="img"></canvas>
+      <div class="busy" id="busy" hidden><span id="busy-text">Rendering…</span><progress id="busy-prog" max="1" value="0"></progress></div>
+      <div class="drop" id="drop" hidden>Drop to pixelate</div>
+    </div>
+    <div class="bar">
+      <div class="status" id="status" role="status" aria-live="polite">Ready.</div>
+      <div class="btns">
+        <button type="button" class="btn" id="copy">Copy</button>
+        <button type="button" class="btn save" id="save-png">Save PNG</button>
+        <button type="button" class="btn save" id="save-gif">Save GIF</button>
+        <button type="button" class="btn save" id="save-video">Save video</button>
+      </div>
+      <p class="savenote" id="savenote" hidden>Saving files isn't available in this view. Copy still works, and the shelf below keeps your GIFs.</p>
+    </div>
+    <section class="shelf" aria-label="Your GIFs">
+      <header><b>Your GIFs</b><span id="shelf-count">0</span><span>Kept until you close this page.</span></header>
+      <div class="strip" id="strip"><p class="empty" id="shelf-empty">Every animated loop you generate lands here as its own GIF, with its own Copy and Save buttons.</p></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   PX — pixel helper library (colours are [r,g,b] arrays in 0..1)
+   ===================================================================== */
+const TAU = Math.PI * 2;
+const PX = (() => {
+  const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  const rgb = (r, g, b) => [r, g, b];
+  const mix = (a, b, t) => { t = clamp01(t); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; };
+  const scale = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+  const clamp = c => [clamp01(c[0]), clamp01(c[1]), clamp01(c[2])];
+  const luma = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  function hsb(h, s, v) {
+    let hh = (h - Math.floor(h)) * 6; const i = Math.floor(hh) % 6, f = hh - Math.floor(hh);
+    const p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+    return [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i];
+  }
+  function hueShift(c, amount) {
+    const [r, g, b] = c;
+    const y = 0.299 * r + 0.587 * g + 0.114 * b, i = 0.596 * r - 0.274 * g - 0.322 * b, q = 0.211 * r - 0.523 * g + 0.312 * b;
+    const a = amount * TAU, i2 = i * Math.cos(a) - q * Math.sin(a), q2 = i * Math.sin(a) + q * Math.cos(a);
+    return clamp([y + 0.956 * i2 + 0.621 * q2, y - 0.272 * i2 - 0.647 * q2, y - 1.106 * i2 + 1.703 * q2]);
+  }
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  const bayer = (x, y) => (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 - 0.5;
+  const ditherBand = (t, bands, x, y) => clamp01(Math.round(t * bands + bayer(x, y)) / bands);
+  const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const wrap = (a, p) => ((a % p) + p) % p;
+
+  class RNG {
+    constructor(seed) { this.s = ((seed >>> 0) ^ 0x9e3779b9) | 0; }
+    next() { let t = (this.s = (this.s + 0x6D2B79F5) | 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return (t ^ (t >>> 14)) >>> 0; }
+    float() { return this.next() / 4294967296; }
+    range(a, b) { return a + (b - a) * this.float(); }
+    int(lo, hi) { return lo + (this.next() % (hi - lo + 1)); }
+    chance(p) { return this.float() < p; }
+    pick(arr) { return arr[this.next() % arr.length]; }
+  }
+
+  const Noise = {
+    hash(x, y, s) {
+      let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul((y | 0) + 0x632be5ab, 0x165667b1) ^ Math.imul((s | 0) ^ 0x5bd1e995, 0x9e3779b1);
+      h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    },
+    value1D(x, p, seed) {
+      const xf = Math.floor(x), i = xf, f = x - xf;
+      const a = Noise.hash(wrap(i, p), 0, seed), b = Noise.hash(wrap(i + 1, p), 0, seed);
+      return a + (b - a) * (f * f * (3 - 2 * f));
+    },
+    /** fractal noise over u in [0,1), tiles at u = 1 */
+    fbm1D(u, lattice, octaves, seed, ridged = false) {
+      let sum = 0, amp = 1, norm = 0, p = lattice;
+      for (let o = 0; o < octaves; o++) {
+        let n = Noise.value1D(u * p, p, (seed + o * 131) | 0);
+        if (ridged) { n = 1 - Math.abs(2 * n - 1); n *= n; }
+        sum += n * amp; norm += amp; amp *= 0.5; p *= 2;
+      }
+      return sum / norm;
+    },
+    value2D(x, y, p, seed) {
+      const xf = Math.floor(x), yf = Math.floor(y), fx = x - xf, fy = y - yf;
+      const x0 = wrap(xf, p), x1 = wrap(xf + 1, p), y0 = wrap(yf, p), y1 = wrap(yf + 1, p);
+      const a = Noise.hash(x0, y0, seed), b = Noise.hash(x1, y0, seed), c = Noise.hash(x0, y1, seed), d = Noise.hash(x1, y1, seed);
+      const tx = fx * fx * (3 - 2 * fx), ty = fy * fy * (3 - 2 * fy);
+      const top = a + (b - a) * tx, bot = c + (d - c) * tx;
+      return top + (bot - top) * ty;
+    },
+    /** fractal noise over (u,v) in [0,1)^2, tiles at 1 */
+    fbm2D(u, v, lattice, octaves, seed, ridged = false) {
+      let sum = 0, amp = 1, norm = 0, p = lattice;
+      for (let o = 0; o < octaves; o++) {
+        let n = Noise.value2D(u * p, v * p, p, (seed + o * 977) | 0);
+        if (ridged) { n = 1 - Math.abs(2 * n - 1); n *= n; }
+        sum += n * amp; norm += amp; amp *= 0.5; p *= 2;
+      }
+      return sum / norm;
+    },
+  };
+
+  /** RGB float buffer. render(phase) of every scene returns one of these. */
+  class Buffer {
+    constructor(w, h, fill) {
+      this.w = w; this.h = h; this.d = new Float32Array(w * h * 3);
+      if (fill) for (let i = 0; i < w * h; i++) { this.d[i * 3] = fill[0]; this.d[i * 3 + 1] = fill[1]; this.d[i * 3 + 2] = fill[2]; }
+    }
+    get(x, y) {
+      x = x < 0 ? 0 : x >= this.w ? this.w - 1 : x | 0; y = y < 0 ? 0 : y >= this.h ? this.h - 1 : y | 0;
+      const i = (y * this.w + x) * 3; return [this.d[i], this.d[i + 1], this.d[i + 2]];
+    }
+    set(x, y, c) {
+      x |= 0; y |= 0; if (x < 0 || y < 0 || x >= this.w || y >= this.h) return;
+      const i = (y * this.w + x) * 3; this.d[i] = c[0]; this.d[i + 1] = c[1]; this.d[i + 2] = c[2];
+    }
+    /** unchecked write by pixel index */
+    put(i, c) { i *= 3; this.d[i] = c[0]; this.d[i + 1] = c[1]; this.d[i + 2] = c[2]; }
+    blend(x, y, c, a) {
+      x |= 0; y |= 0; if (x < 0 || y < 0 || x >= this.w || y >= this.h) return;
+      a = clamp01(a); const i = (y * this.w + x) * 3;
+      this.d[i] += (c[0] - this.d[i]) * a; this.d[i + 1] += (c[1] - this.d[i + 1]) * a; this.d[i + 2] += (c[2] - this.d[i + 2]) * a;
+    }
+    clone() { const b = new Buffer(this.w, this.h); b.d.set(this.d); return b; }
+    /** write into an ImageData (or any {data: Uint8ClampedArray}) of the same size */
+    toImageData(img) {
+      const o = img.data, d = this.d, n = this.w * this.h;
+      for (let i = 0; i < n; i++) { o[i * 4] = d[i * 3] * 255 + 0.5; o[i * 4 + 1] = d[i * 3 + 1] * 255 + 0.5; o[i * 4 + 2] = d[i * 3 + 2] * 255 + 0.5; o[i * 4 + 3] = 255; }
+      return img;
+    }
+  }
+  return { TAU, clamp01, rgb, mix, scale, clamp, luma, hsb, hueShift, bayer, ditherBand, smoothstep, wrap, RNG, Noise, Buffer };
+})();
+
+/* =====================================================================
+   SCENES registry
+   entry: { group: '2D' | '3D', label: string, hint?: string,
+            make(settings) -> { w, h, name?, render(phase) -> PX.Buffer } }
+   settings: { w, h, seed, duration (s, ≤ 15), parallax (bool) }
+   phase is in [0, 1); render(0) must equal render(1) for a seamless loop.
+   ===================================================================== */
+const SCENES = {};
+
+/* ---------------- 2D landscape (side view, layered parallax) ---------------- */
+function landscape(theme, s) {
+  const { mix, scale, hsb, hueShift, bayer, ditherBand, wrap, Noise, RNG, Buffer } = PX;
+  const rng = new RNG(s.seed);
+  const w = s.w, h = s.h;
+  const hueJitter = rng.range(-0.04, 0.04);
+  const ambientCycles = s.duration >= 5 ? 1 : 0;
+  const waveCycles = Math.max(1, Math.round(s.duration));
+  let top, hor, sun, land, deep, tree;
+  let moon = false, nightStars = false, snowCaps = false, shape = 'mountain', crystals = false;
+  let hasWater = rng.chance(0.4), sunHeight = rng.range(0.15, 0.35), particleKind = 0;
+  switch (theme) {
+    case 'meadow':
+      top = [0.30, 0.52, 0.92]; hor = [0.78, 0.90, 0.98]; sun = [1, 0.97, 0.80];
+      land = [[0.45, 0.58, 0.78], [0.35, 0.60, 0.55], [0.30, 0.62, 0.30], [0.18, 0.45, 0.20]];
+      deep = [0.08, 0.20, 0.12]; tree = [0.10, 0.32, 0.16]; snowCaps = true; break;
+    case 'sunset':
+      top = [0.22, 0.12, 0.38]; hor = [1.0, 0.56, 0.32]; sun = [1, 0.85, 0.45];
+      land = [[0.62, 0.32, 0.45], [0.42, 0.20, 0.38], [0.26, 0.12, 0.28], [0.14, 0.06, 0.16]];
+      deep = [0.06, 0.02, 0.08]; tree = [0.08, 0.03, 0.10]; sunHeight = rng.range(0.42, 0.55); break;
+    case 'night':
+      top = [0.02, 0.03, 0.10]; hor = [0.12, 0.16, 0.32]; sun = [0.95, 0.95, 0.85];
+      land = [[0.16, 0.18, 0.32], [0.11, 0.13, 0.25], [0.07, 0.09, 0.18], [0.04, 0.05, 0.11]];
+      deep = [0.01, 0.01, 0.04]; tree = [0.02, 0.03, 0.07]; moon = true; nightStars = true;
+      snowCaps = rng.chance(0.5); particleKind = rng.chance(0.6) ? 2 : 0; break;
+    case 'desert':
+      top = [0.28, 0.55, 0.88]; hor = [0.98, 0.86, 0.68]; sun = [1, 0.98, 0.85];
+      land = [[0.85, 0.62, 0.50], [0.88, 0.55, 0.32], [0.80, 0.45, 0.22], [0.62, 0.32, 0.15]];
+      deep = [0.35, 0.15, 0.08]; tree = [0.25, 0.45, 0.22]; shape = rng.chance(0.5) ? 'mesa' : 'dune';
+      hasWater = false; particleKind = rng.chance(0.4) ? 3 : 0; break;
+    case 'alien': {
+      const hue = rng.float();
+      top = hsb(hue, 0.7, 0.25); hor = hsb(hue + 0.35, 0.55, 0.9); sun = hsb(hue + 0.6, 0.35, 1);
+      land = [0, 1, 2, 3].map(i => hsb(hue + 0.5 + i * 0.05, 0.55, 0.7 - i * 0.15));
+      deep = hsb(hue + 0.6, 0.6, 0.06); tree = hsb(hue + 0.15, 0.8, 0.85);
+      moon = true; nightStars = true; crystals = true; sunHeight = rng.range(0.15, 0.3); break;
+    }
+    case 'winter':
+      top = [0.45, 0.62, 0.85]; hor = [0.88, 0.92, 0.98]; sun = [1, 1, 0.95];
+      land = [[0.72, 0.78, 0.90], [0.82, 0.86, 0.95], [0.90, 0.93, 0.98], [0.96, 0.97, 1.0]];
+      deep = [0.55, 0.62, 0.78]; tree = [0.10, 0.28, 0.25]; snowCaps = true; particleKind = 1; break;
+    default: { // ocean
+      theme = 'ocean';
+      const dusk = rng.chance(0.5);
+      top = dusk ? [0.20, 0.18, 0.45] : [0.20, 0.48, 0.88];
+      hor = dusk ? [1.0, 0.70, 0.45] : [0.75, 0.90, 1.0];
+      sun = dusk ? [1, 0.80, 0.45] : [1, 0.98, 0.85];
+      land = [[0.40, 0.48, 0.65], [0.30, 0.45, 0.42], [0.20, 0.40, 0.25], [0.12, 0.28, 0.15]];
+      deep = [0.04, 0.10, 0.08]; tree = [0.08, 0.25, 0.12]; hasWater = true;
+      if (dusk) sunHeight = rng.range(0.40, 0.50);
+    }
+  }
+  if (theme === 'night' || theme === 'alien') hasWater = hasWater && rng.chance(0.7);
+  top = hueShift(top, hueJitter); hor = hueShift(hor, hueJitter);
+  const skyTop = top, skyHorizon = hor, sunColor = sun, isMoon = moon;
+  const glow = mix(sun, hor, 0.3);
+  const secondMoon = theme === 'alien';
+  const sunX = rng.range(0.15, 0.85) * w, sunY = sunHeight * h;
+  const sunR = rng.range(0.05, 0.09) * h * (theme === 'sunset' ? 1.6 : 1);
+
+  const stars = [];
+  if (nightStars) for (let i = 0; i < ((w * h / 40) | 0); i++)
+    stars.push({ x: rng.int(0, w - 1), y: rng.int(0, (h * 2 / 3) | 0), b: rng.range(0.3, 1), k: rng.int(1, 3), ph: rng.float() });
+  const shooting = nightStars && rng.chance(0.7) ? { x: rng.range(0.3, 0.9) * w, y: rng.range(0.05, 0.25) * h, at: rng.range(0.1, 0.7) } : null;
+
+  const waterY = hasWater ? ((h * (theme === 'ocean' ? rng.range(0.55, 0.65) : rng.range(0.62, 0.72))) | 0) : null;
+  const waterColor = theme === 'night' ? [0.03, 0.05, 0.15] : mix(mix(top, deep, 0.35), [0.1, 0.35, 0.5], 0.3);
+
+  const layers = [];
+  for (let i = 0; i < 4; i++) {
+    const fi = i / 3, haze = (1 - fi) * 0.65, base = land[i];
+    let ls = i < 2 ? 'mountain' : 'hill';
+    if (theme === 'desert') ls = i === 0 ? 'mountain' : shape;
+    if (theme === 'ocean' && i < 3) ls = 'hill';
+    let b, amp;
+    if (waterY !== null && i < 3) {
+      const wf = waterY / h;
+      b = wf - 0.005 + i * 0.01;
+      amp = (ls === 'mountain' ? 0.38 : 0.12) * (1 - fi * 0.45) * (theme === 'ocean' ? 0.45 : 1);
+    } else if (waterY !== null) {
+      b = 1.02; amp = rng.range(0.10, 0.18);
+    } else {
+      b = 0.52 + fi * 0.45;
+      amp = ls === 'mountain' ? (0.42 - fi * 0.12) : (0.16 + fi * 0.06);
+      if (ls === 'mesa') amp *= 1.4;
+    }
+    const isWaterLayer = waterY !== null && i < 3;
+    const visible = !(theme === 'ocean' && isWaterLayer && i < 2 && rng.chance(0.4));
+    if (!visible) continue;
+    layers.push({
+      base: b, amp,
+      lattice: ls === 'mountain' ? rng.int(3, 5) : rng.int(2, 4),
+      octaves: ls === 'mountain' ? 5 : 3,
+      seed: rng.next() | 0, shape: ls,
+      top: mix(base, hor, haze),
+      bottom: mix(mix(base, deep, 0.55 + fi * 0.3), hor, haze * 0.8),
+      cycles: s.parallax ? i : 0,
+      snow: snowCaps && ls === 'mountain',
+      trees: theme === 'desert' ? (i >= 2 ? 0.03 : 0) : (ls === 'hill' ? rng.range(0.05, 0.25) * (0.5 + fi) : 0),
+      treeColor: mix(tree, hor, haze * 0.9),
+      behindWater: isWaterLayer, crystals,
+    });
+  }
+
+  const clouds = [];
+  const cloudCount = theme === 'desert' ? rng.int(0, 2) : rng.int(2, 6);
+  const cloudLight = theme === 'night' ? [0.30, 0.32, 0.45] : (theme === 'sunset' ? [1, 0.7, 0.6] : mix([1, 1, 1], hor, 0.15));
+  const cloudShade = mix(cloudLight, top, 0.45);
+  for (let c = 0; c < cloudCount; c++) {
+    const puffs = [], size = rng.range(0.03, 0.07) * h, np = rng.int(3, 6);
+    for (let p = 0; p < np; p++) puffs.push([p * size * rng.range(0.7, 1.1), rng.range(-0.4, 0.2) * size, size * rng.range(0.7, 1.3)]);
+    clouds.push({ x: rng.range(0, w), y: rng.range(0.08, 0.38) * h, puffs, cycles: s.parallax ? rng.int(1, 2) : ambientCycles });
+  }
+
+  const particles = [];
+  if (particleKind === 1) {
+    for (let i = 0; i < ((w * h / 60) | 0); i++) {
+      const near = rng.chance(0.25);
+      particles.push({ x: rng.range(0, w), y: rng.range(0, h), size: near ? 2 : 1, fall: near ? 2 : 1, sway: rng.range(1, 3), ph: rng.float(), k: rng.int(1, 2), color: [1, 1, 1] });
+    }
+  } else if (particleKind === 2) {
+    const n = rng.int(10, 25);
+    for (let i = 0; i < n; i++) particles.push({ x: rng.range(0, w), y: rng.range(0.65, 0.95) * h, size: 1, fall: 0, sway: rng.range(2, 5), ph: rng.float(), k: rng.int(1, 2), color: [0.9, 1, 0.5] });
+  } else if (particleKind === 3) {
+    for (let i = 0; i < ((w * h / 120) | 0); i++) particles.push({ x: rng.range(0, w), y: rng.range(0.4, 1) * h, size: 1, fall: -1, sway: rng.range(1, 3), ph: rng.float(), k: 1, color: [1, 0.85, 0.6] });
+  }
+
+  const birds = [];
+  if (theme !== 'night' && theme !== 'alien' && rng.chance(0.6)) {
+    const flap = Math.max(2, (s.duration * 3) | 0);
+    const gx = rng.range(0, w), gy = rng.range(0.15, 0.4) * h, n = rng.int(2, 5);
+    for (let j = 0; j < n; j++) birds.push({ x: gx - j * 5, y: gy + (j % 2) * 3 + j * 1.5, cycles: 1, flap, ph: j * 0.15 });
+  }
+
+  function ridge(L, xs) {
+    const u = wrap(xs, w) / w;
+    let v = Noise.fbm1D(u, L.lattice, L.octaves, L.seed, L.shape === 'mountain');
+    if (L.shape === 'mountain') v = Math.min(1, v * 1.25);
+    else if (L.shape === 'mesa') v = v > 0.55 ? 0.62 + (v - 0.55) * 0.08 : v * 0.7;
+    else if (L.shape === 'dune') v = Math.pow(v, 1.6) * 1.3;
+    return h * L.base - L.amp * h * v;
+  }
+
+  function drawDisc(buf, cx, cy, r, c, crescent) {
+    const ri = (r | 0) + 1;
+    for (let y = -ri; y <= ri; y++) for (let x = -ri; x <= ri; x++) {
+      const d = Math.sqrt(x * x + y * y);
+      if (d > r) continue;
+      let col = c;
+      if (crescent) {
+        const ox = x + r * 0.45, oy = y - r * 0.2;
+        if (Math.sqrt(ox * ox + oy * oy) < r * 0.9) continue;
+        if (Noise.hash(x, y, 7) > 0.85) col = scale(c, 0.85);
+      } else if (d > r - 1.2) col = mix(c, glow, 0.3);
+      buf.set((cx | 0) + x, (cy | 0) + y, col);
+    }
+  }
+
+  function drawCloud(buf, c, t) {
+    const off = (c.x + t * w * c.cycles) % w;
+    for (const shift of [off - w, off]) for (const [pdx, pdy, r] of c.puffs) {
+      const cx = shift + pdx, cy = c.y + pdy, ri = (r | 0) + 1;
+      for (let y = -ri; y <= ri; y++) for (let x = -ri; x <= ri; x++) {
+        const fy = y * 1.5;
+        if (x * x + fy * fy > r * r) continue;
+        if (cy + y > c.y + r * 0.55) continue;
+        const lit = (y + bayer(x, y) * 2) < r * 0.15;
+        buf.set(Math.trunc(cx) + x, Math.trunc(cy) + y, lit ? cloudLight : cloudShade);
+      }
+    }
+  }
+
+  function drawCactus(buf, x, base, th, c) {
+    for (let k = 0; k < th; k++) { buf.set(x, base - k, c); buf.set(x + 1, base - k, scale(c, 0.8)); }
+    if (th > 4) {
+      const a = (th / 2) | 0;
+      buf.set(x - 1, base - a, c); buf.set(x - 2, base - a, c); buf.set(x - 2, base - a - 1, c); buf.set(x - 2, base - a - 2, c);
+      buf.set(x + 2, base - a + 1, c); buf.set(x + 3, base - a + 1, c); buf.set(x + 3, base - a, c);
+    }
+  }
+
+  function drawCrystal(buf, x, base, th, c, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(TAU * (t * 2 + x * 0.13));
+    for (let k = 0; k < th; k++) {
+      const half = k < ((th / 3) | 0) ? ((k / 2) | 0) : (((th - k) / 3) | 0);
+      for (let dx = -half; dx <= half; dx++)
+        buf.set(x + dx, base - k, mix(dx <= 0 ? c : scale(c, 0.65), [1, 1, 1], pulse * 0.3 * k / th));
+    }
+  }
+
+  function drawLayer(buf, L, t) {
+    const off = Math.floor(t * w * L.cycles);
+    const sunLeft = sunX < w / 2;
+    const lightCol = mix(L.top, sunColor, isMoon ? 0.08 : 0.2);
+    const shadeCol = mix(L.top, L.bottom, 0.35);
+    const sp = L.shape === 'mountain' ? 1 : 3;
+    for (let x = 0; x < w; x++) {
+      const xs = x + off, r = ridge(L, xs);
+      const slope = (ridge(L, xs + sp) + ridge(L, xs + 3 * sp) + ridge(L, xs + 5 * sp)) - (ridge(L, xs - sp) + ridge(L, xs - 3 * sp) + ridge(L, xs - 5 * sp));
+      const lit = (slope < 0) === sunLeft;
+      const peakH = (h * L.base - r) / (L.amp * h + 0.001);
+      const ry = Math.max(0, Math.trunc(r));
+      for (let y = ry; y < h; y++) {
+        const d = y - r;
+        let c = mix(lit ? lightCol : shadeCol, L.bottom, ditherBand(Math.min(1, d / (h * 0.35)), 4, x + off, y));
+        if (L.snow && peakH > 0.55 && d < (peakH - 0.55) * L.amp * h * 0.9 + bayer(x + off, y) * 3)
+          c = mix(lit ? [0.97, 0.98, 1] : [0.75, 0.80, 0.92], skyHorizon, 0.25);
+        if (L.shape === 'hill' && d < 2 && Noise.hash(wrap(xs, w), y, L.seed) > 0.7) c = mix(c, lightCol, 0.6);
+        buf.put(y * w + x, c);
+      }
+      if (L.shape === 'hill' && Noise.hash(wrap(xs, w), 1, L.seed) > 0.75) buf.set(x, ry - 1, lightCol);
+    }
+    if (L.trees <= 0) return;
+    for (let x = -6; x < w + 6; x++) {
+      const xs = wrap(x + off, w);
+      if (Noise.hash(xs, 99, L.seed) >= L.trees) continue;
+      const base = Math.trunc(ridge(L, xs)) + 1;
+      const th = 3 + Math.trunc(Noise.hash(xs, 5, L.seed) * (L.cycles > 1 || L.base > 0.9 ? 8 : 5));
+      if (theme === 'desert') { drawCactus(buf, x, base, th, L.treeColor); continue; }
+      if (L.crystals) { drawCrystal(buf, x, base, th, L.treeColor, t); continue; }
+      const round = theme === 'meadow' && Noise.hash(xs, 6, L.seed) > 0.6;
+      for (let k = 0; k < th; k++) {
+        const y = base - k;
+        const half = round ? Math.trunc(th * 0.45 * Math.sin(Math.PI * k / th) + 0.5) : Math.trunc((th - k) / 2);
+        for (let dx = -half; dx <= half; dx++) {
+          let c = ((dx < 0) === (sunX < w / 2)) ? mix(L.treeColor, lightCol, 0.25) : L.treeColor;
+          if (theme === 'winter' && ((k % 3 === 2) || k === th - 1)) c = [0.92, 0.95, 1];
+          buf.set(x + dx, y, c);
+        }
+      }
+      buf.set(x, base + 1, scale(L.treeColor, 0.6));
+    }
+  }
+
+  function drawWater(buf, wy, t) {
+    const src = buf.clone();
+    for (let y = wy; y < h; y++) {
+      const d = y - wy, depth = d / Math.max(1, h - wy);
+      const wave = Math.sin(TAU * (t * waveCycles + y * 0.37));
+      const dx = Math.round(wave * (1 + depth * 2.5));
+      const sy = wy - 1 - Math.trunc(d * 1.1);
+      for (let x = 0; x < w; x++) {
+        let c = sy >= 0 ? src.get(x + dx, sy) : skyTop;
+        c = mix(c, waterColor, 0.35 + depth * 0.4);
+        const ph = Noise.hash(Math.floor(x / 3), y, 42);
+        if (ph > 0.8 - depth * 0.1 && Math.sin(TAU * (t * waveCycles + ph * 9)) > 0.55) c = mix(c, skyHorizon, 0.4);
+        buf.put(y * w + x, c);
+      }
+    }
+    for (let x = 0; x < w; x++) if (Math.sin(TAU * (t * waveCycles + Noise.hash(Math.floor(x / 2), 0, 3) * 5)) > 0.2) buf.blend(x, wy, skyHorizon, 0.4);
+  }
+
+  function render(t) {
+    const buf = new Buffer(w, h);
+    const horizonY = waterY !== null ? waterY : h * 0.75;
+    for (let y = 0; y < h; y++) {
+      const ty = Math.min(1, y / horizonY);
+      for (let x = 0; x < w; x++) {
+        let c = mix(skyTop, skyHorizon, ditherBand(Math.pow(ty, 1.4), 7, x, y));
+        const dx = x - sunX, dy = (y - sunY) * 1.2;
+        const d = Math.sqrt(dx * dx + dy * dy) / h;
+        const g = Math.max(0, 1 - d * (isMoon ? 3.5 : 2.2));
+        if (g > 0) c = mix(c, glow, ditherBand(g * g * (isMoon ? 0.35 : 0.6), 5, x, y));
+        buf.put(y * w + x, c);
+      }
+    }
+    for (const st of stars) buf.blend(st.x, st.y, [1, 1, 0.95], st.b * (0.55 + 0.45 * Math.sin(TAU * (t * st.k + st.ph))));
+    if (shooting && t >= shooting.at && t < shooting.at + 0.12) {
+      const p = (t - shooting.at) / 0.12;
+      for (let k = 0; k < 8; k++) buf.blend(shooting.x - p * w * 0.3 + k, shooting.y + p * h * 0.15 - k * 0.5, [1, 1, 1], (1 - k / 8) * (1 - p));
+    }
+    drawDisc(buf, sunX, sunY, sunR, sunColor, isMoon && theme !== 'alien');
+    if (secondMoon) drawDisc(buf, w - sunX * 0.6, sunY * 0.6 + 6, sunR * 0.5, hueShift(sunColor, 0.3), false);
+    for (const c of clouds) drawCloud(buf, c, t);
+    for (const b of birds) {
+      const x = (b.x + t * (w + 20) * b.cycles) % (w + 20) - 10;
+      const up = Math.sin(TAU * (t * b.flap + b.ph)) > 0;
+      const bx = Math.trunc(x), by = Math.trunc(b.y);
+      const col = theme === 'sunset' ? [0.1, 0.05, 0.1] : [0.15, 0.15, 0.2];
+      buf.set(bx, by, col);
+      buf.set(bx - 1, by + (up ? -1 : 0), col); buf.set(bx + 1, by + (up ? -1 : 0), col);
+      buf.set(bx - 2, by + (up ? -1 : 1), col); buf.set(bx + 2, by + (up ? -1 : 1), col);
+    }
+    for (const L of layers) if (L.behindWater) drawLayer(buf, L, t);
+    if (waterY !== null) drawWater(buf, waterY, t);
+    for (const L of layers) if (!L.behindWater) drawLayer(buf, L, t);
+    for (const p of particles) {
+      let x = p.x + Math.sin(TAU * (t * p.k + p.ph)) * p.sway, y = p.y, a = 0.9;
+      if (p.fall > 0) y = (p.y + t * h * p.fall) % h;
+      if (p.fall < 0) { x = (p.x + t * w) % w; y += Math.sin(TAU * (t * 2 + p.ph)) * 2; }
+      if (p.fall === 0) {
+        a = Math.max(0, Math.sin(TAU * (t * p.k * 2 + p.ph)));
+        y += Math.cos(TAU * (t * p.k + p.ph)) * p.sway * 0.6;
+        buf.blend(x - 1, y, p.color, a * 0.3); buf.blend(x + 1, y, p.color, a * 0.3);
+      }
+      for (let dy = 0; dy < p.size; dy++) for (let dx = 0; dx < p.size; dx++) buf.blend(Math.trunc(x) + dx, Math.trunc(y) + dy, p.color, a);
+    }
+    return buf;
+  }
+  return { w, h, render };
+}
+
+const THEMES_2D = { meadow: 'Meadow', sunset: 'Sunset', night: 'Night', desert: 'Desert', alien: 'Alien world', winter: 'Winter', ocean: 'Ocean' };
+for (const [key, label] of Object.entries(THEMES_2D)) SCENES[key] = { group: '2D', cat: 'Landscapes', label, make: s => landscape(key, s) };
+
+/* === MORE SCENES INSERTED HERE === */
+/* ---------- Nature scenes: forest, big trees (3 seasons), flower field, beach, waterfall ---------- */
+const NATURE = { forest: 'Forest', bigtree: 'Big Tree', autumn: 'Autumn Tree', blossom: 'Cherry Blossom', flowers: 'Flower Field', beach: 'Tropical Beach', waterfall: 'Waterfall' };
+function nature(kind, s) {
+  const { mix, scale, bayer, ditherBand, wrap, RNG, Noise, Buffer } = PX;
+  const W = s.w, H = s.h, rng = new RNG((s.seed + 31) >>> 0);
+  const seed = rng.next(), cloudSeed = rng.next();
+  const k = Math.max(1, Math.round(s.duration)), half = Math.max(1, Math.floor(k / 2));
+  const golden = rng.chance(kind === 'beach' || kind === 'flowers' ? 0.4 : 0.25);
+  let skyTop, skyHor, sun;
+  if (golden) { skyTop = [0.30, 0.25, 0.60]; skyHor = [1.0, 0.65, 0.40]; sun = [1, 0.85, 0.5]; }
+  else if (kind === 'blossom') { skyTop = [0.45, 0.62, 0.95]; skyHor = [0.98, 0.88, 0.92]; sun = [1, 0.98, 0.9]; }
+  else if (kind === 'autumn') { skyTop = [0.35, 0.55, 0.88]; skyHor = [0.95, 0.90, 0.78]; sun = [1, 0.95, 0.8]; }
+  else { skyTop = [0.25, 0.52, 0.92]; skyHor = [0.80, 0.92, 1.0]; sun = [1, 0.98, 0.85]; }
+  const sunX = rng.range(0.12, 0.88) * W, sunY = (golden ? rng.range(0.30, 0.42) : rng.range(0.10, 0.22)) * H, sunR = H * rng.range(0.05, 0.08);
+  const grass = kind === 'autumn' ? [0.55, 0.60, 0.25] : [0.36, 0.66, 0.28], grassDark = scale(grass, 0.6);
+  const isTree = kind === 'bigtree' || kind === 'autumn' || kind === 'blossom';
+  const groundY = H * (isTree ? 0.80 : 0.70);
+  let leafColors = [[0.20, 0.50, 0.20], [0.30, 0.62, 0.25], [0.42, 0.72, 0.30]];
+  if (kind === 'autumn') leafColors = [[0.75, 0.25, 0.10], [0.92, 0.50, 0.12], [0.98, 0.75, 0.25]];
+  if (kind === 'blossom') leafColors = [[0.90, 0.55, 0.68], [0.98, 0.72, 0.82], [1.0, 0.88, 0.93]];
+  const bark = kind === 'blossom' ? [0.30, 0.20, 0.18] : [0.38, 0.26, 0.16];
+
+  // --- tree
+  const segs = [], leaves = [];
+  if (isTree) {
+    const branch = (x, y, a, len, th, depth) => {
+      const x1 = x + Math.cos(a) * len, y1 = y + Math.sin(a) * len;
+      segs.push([x, y, x1, y1, th, th * 0.7]);
+      if (depth === 0 || len < 2.5) { leaves.push([x1, y1, Math.max(2.5, H * rng.range(0.06, 0.10))]); return; }
+      if (depth <= 2) leaves.push([x1, y1, Math.max(2, H * rng.range(0.05, 0.08))]);
+      const n = rng.int(2, 3);
+      for (let i = 0; i < n; i++) {
+        const na = a + (i - (n - 1) / 2) * rng.range(0.35, 0.65) + rng.range(-0.15, 0.15);
+        branch(x1, y1, na, len * rng.range(0.66, 0.80), th * 0.68, depth - 1);
+      }
+    };
+    branch(W * rng.range(0.35, 0.65), groundY + 1, -Math.PI / 2 + rng.range(-0.1, 0.1), H * 0.17, Math.max(2, H * 0.06), 5);
+  }
+  const flowerColors = rng.pick([
+    [[0.90, 0.15, 0.15], [0.98, 0.85, 0.20]], [[0.62, 0.45, 0.85], [0.80, 0.65, 0.95]],
+    [[0.98, 0.80, 0.15], [0.95, 0.55, 0.10]], [[1, 1, 1], [0.98, 0.70, 0.80], [0.95, 0.90, 0.30]]]);
+  const palms = [];
+  if (kind === 'beach') for (let i = 0, n = rng.int(1, 3); i < n; i++)
+    palms.push({ x: W * (i === 0 ? rng.range(0.1, 0.3) : rng.range(0.55, 0.9)), h: H * rng.range(0.40, 0.58), lean: rng.range(0.15, 0.4) * (rng.chance(0.5) ? 1 : -1), fronds: rng.int(5, 7) });
+  const seaColor = golden ? [0.25, 0.35, 0.60] : [0.10, 0.55, 0.70];
+  const fallX = W * rng.range(0.40, 0.60), fallW = Math.max(4, W * rng.range(0.08, 0.14));
+  const rainbow = kind === 'waterfall' && !golden && rng.chance(0.6);
+  const parts = [];
+  if (isTree) for (let i = 0, n = kind === 'bigtree' ? W / 16 : W / 5; i < n; i++)
+    parts.push({ x: rng.range(0, W), y: rng.range(0, H), sway: rng.range(2, 6), ph: rng.float(), c: rng.pick(leafColors), size: rng.chance(0.2) ? 2 : 1 });
+  if (kind === 'forest') for (let i = 0; i < W / 6; i++) parts.push({ x: rng.range(0, W), y: rng.range(0.2, 0.9) * H, sway: rng.range(2, 5), ph: rng.float(), c: [1, 0.95, 0.7] });
+  if (kind === 'flowers') for (let i = 0, n = rng.int(2, 4); i < n; i++)
+    parts.push({ x: rng.range(0.1, 0.9) * W, y: rng.range(0.45, 0.75) * H, sway: rng.range(6, 14), ph: rng.float(), c: rng.pick([[1, 0.6, 0.1], [0.3, 0.5, 1], [1, 1, 0.9], [0.9, 0.3, 0.6]]) });
+  if (kind === 'waterfall') for (let i = 0; i < W / 3; i++) parts.push({ x: fallX + rng.range(-1.5, 1.5) * fallW, y: H * rng.range(0.62, 0.8), sway: rng.range(1, 4), ph: rng.float(), c: [1, 1, 1] });
+
+  // --- helpers
+  const sky = (b, horizon, t, clouds = true) => {
+    for (let y = 0; y < H; y++) {
+      const ty = Math.min(1, y / Math.max(1, horizon));
+      for (let x = 0; x < W; x++) {
+        let c = mix(skyTop, skyHor, ditherBand(Math.pow(ty, 1.3), 7, x, y));
+        const dx = x - sunX, dy = y - sunY, d = Math.sqrt(dx * dx + dy * dy) / H, g = Math.max(0, 1 - d * 2.2);
+        if (g > 0) c = mix(c, sun, ditherBand(g * g * 0.55, 5, x, y));
+        if (d * H < sunR) c = sun;
+        b.put(y * W + x, c);
+      }
+    }
+    if (!clouds) return;
+    const drift = s.parallax ? 1 : 0;
+    for (let y = 0; y < Math.floor(horizon * 0.55); y++) for (let x = 0; x < W; x++) {
+      let u = x / W + t * drift; u -= Math.floor(u);
+      const n = Noise.fbm2D(u, y / H * 2.5, 4, 4, cloudSeed);
+      if (n > 0.64 + bayer(x, y) * 0.03) b.put(y * W + x, mix(n > 0.69 ? [1, 1, 1] : [0.86, 0.88, 0.96], skyHor, 0.15));
+    }
+  };
+  const hill = (x, base, amp, lattice, sd, off = 0) => H * base - H * amp * Noise.fbm1D(wrap(x + off, W) / W, lattice, 3, sd);
+  const disc = (b, cx, cy, r, c) => { const ri = Math.floor(r) + 1; for (let y = -ri; y <= ri; y++) for (let x = -ri; x <= ri; x++) if (x * x + y * y <= r * r) b.set(cx + x, cy + y, c); };
+  const thickLine = (b, x0, y0, x1, y1, t0, t1, c, lit) => {
+    const len = Math.max(1, Math.floor(Math.hypot(x1 - x0, y1 - y0) * 1.5));
+    for (let i = 0; i <= len; i++) {
+      const f = i / len, x = x0 + (x1 - x0) * f, y = y0 + (y1 - y0) * f, r = (t0 + (t1 - t0) * f) / 2, ri = Math.ceil(r);
+      for (let dy = -ri; dy <= ri; dy++) for (let dx = -ri; dx <= ri; dx++) if (dx * dx + dy * dy <= r * r + 0.5) b.set(x + dx, y + dy, dx < -r * 0.2 ? lit : c);
+    }
+  };
+
+  // --- scenes
+  const treeScene = (b, t) => {
+    sky(b, groundY, t);
+    for (let layer = 0; layer < 2; layer++) {
+      const col = mix(layer === 0 ? [0.45, 0.62, 0.55] : [0.35, 0.58, 0.35], skyHor, layer === 0 ? 0.55 : 0.3);
+      const off = s.parallax ? Math.floor(t * W * (layer + 1)) : 0;
+      for (let x = 0; x < W; x++) { const hy = hill(x, groundY / H - 0.01, layer === 0 ? 0.18 : 0.10, 3, seed + layer, off); for (let y = Math.max(0, Math.floor(hy)); y < H; y++) b.put(y * W + x, col); }
+    }
+    for (let y = Math.floor(groundY); y < H; y++) for (let x = 0; x < W; x++) {
+      let c = mix(grass, grassDark, ditherBand((y - groundY) / (H - groundY), 4, x, y));
+      if (Noise.hash(x, y, seed) > 0.93) c = mix(c, [1, 1, 0.8], 0.35);
+      if (kind === 'autumn' && Noise.hash(x >> 1, y, seed + 3) > 0.8) c = scale(leafColors[Math.floor(Noise.hash(x, y, 9) * 3) % 3], 0.85);
+      if (kind === 'blossom' && Noise.hash(x, y, seed + 4) > 0.9) c = leafColors[2];
+      b.put(y * W + x, c);
+    }
+    const base = segs[0], span = H * 0.35;
+    for (let x = Math.floor(base[0] - span); x <= base[0] + span; x++) for (let y = Math.floor(groundY); y <= groundY + 2; y++)
+      if (Math.abs(x - base[0]) / span + bayer(x, y) * 0.3 < 0.85) b.blend(x, y, [0, 0, 0], 0.25);
+    const topY = Math.min(...leaves.map(l => l[1])) - 1;
+    const sway = y => { const hf = Math.max(0, (groundY - y) / Math.max(1, groundY - topY)); return Math.sin(TAU * half * t + hf * 1.5) * hf * hf * Math.max(1, H * 0.025); };
+    const barkLit = mix(bark, sun, 0.25);
+    for (const g of segs) thickLine(b, g[0] + sway(g[1]), g[1], g[2] + sway(g[3]), g[3], g[4], g[5], bark, barkLit);
+    const dark = scale(leafColors[0], 0.6);
+    for (const [lx, ly, r] of leaves) disc(b, lx + sway(ly) + r * 0.25, ly + r * 0.3, r, dark);
+    for (const [lx, ly, r] of leaves) {
+      const cx = lx + sway(ly), cy = ly, ri = Math.floor(r) + 1;
+      for (let y = -ri; y <= ri; y++) for (let x = -ri; x <= ri; x++) {
+        if (x * x + y * y > r * r * 0.85) continue;
+        const light = (-x - y) / (r * 1.6) + 0.5 + bayer(Math.floor(cx) + x, Math.floor(cy) + y) * 0.45;
+        b.set(cx + x, cy + y, leafColors[light > 0.75 ? 2 : light > 0.35 ? 1 : 0]);
+      }
+    }
+    for (const p of parts) {
+      const y = (p.y + t * H) % H;
+      const x = ((p.x + Math.sin(TAU * (t * half + p.ph)) * p.sway + t * W) % W + W) % W;
+      for (let dy = 0; dy < p.size; dy++) for (let dx = 0; dx < p.size; dx++) b.set(x + dx, y + dy, p.c);
+    }
+  };
+
+  const forest = (b, t) => {
+    const fog = mix([0.62, 0.78, 0.62], skyHor, 0.35), canopy = [0.10, 0.28, 0.14];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      b.put(y * W + x, mix(fog, [0.95, 0.95, 0.75], ditherBand(Math.max(0, 1 - Math.abs(x - sunX) / W * 1.6) * 0.5 * (1 - y / H), 5, x, y)));
+    for (let r = 0; r < 4; r++) {
+      const f = r / 3, col = mix([0.30, 0.20, 0.14], fog, (1 - f) * 0.75), colLit = mix(col, [0.9, 0.8, 0.5], 0.15);
+      const spacing = Math.max(1, Math.floor(W / (14 - r * 3))), tw = Math.max(1, Math.floor(W * (0.012 + f * 0.035)));
+      const off = s.parallax ? Math.floor(t * W * r) : 0, groundRow = Math.floor(H * (0.70 + f * 0.08));
+      for (let x0 = 0; x0 < W + spacing; x0 += spacing) {
+        const cell = Math.floor(x0 / spacing), xs = wrap(x0 + Math.floor(Noise.hash(cell, r, seed) * spacing) - off, W);
+        if (Noise.hash(cell, r + 10, seed) <= 0.25) continue;
+        for (let dx = 0; dx < tw; dx++) for (let y = 0; y < groundRow; y++) b.set(xs + dx, y, dx < tw / 3 ? colLit : col);
+        b.set(xs - 1, groundRow - 1, col); b.set(xs + tw, groundRow - 1, col);
+      }
+      const gcol = scale(mix([0.22, 0.38, 0.16], fog, (1 - f) * 0.6), 0.85 + f * 0.15);
+      for (let x = 0; x < W; x++) {
+        const gy = groundRow + Math.floor(Noise.value1D(wrap(x + off, W) / 8, W / 8, seed + r) * 3);
+        for (let y = Math.max(0, gy); y < H; y++) b.put(y * W + x, gcol);
+      }
+    }
+    for (let x = 0; x < W; x++) {
+      const cy = H * (0.18 + Noise.fbm1D(x / W, 6, 3, seed + 7) * 0.18);
+      for (let y = 0; y < Math.floor(cy); y++) {
+        const light = Noise.hash(x >> 1, y >> 1, seed) > 0.85 && y > cy - 4;
+        b.put(y * W + x, light ? mix(canopy, [0.5, 0.75, 0.3], 0.5) : mix(canopy, [0, 0.05, 0], 0.2 - y / cy * 0.2));
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const rx = sunX + (i - 2) * W * 0.13 + Noise.hash(i, 0, seed) * 10, pulse = 0.10 + 0.05 * Math.sin(TAU * (t * half + i * 0.3));
+      for (let y = 0; y < H; y++) { const cx = rx + y * 0.35, hw = 2 + y * 0.05; for (let x = Math.floor(cx - hw); x <= cx + hw; x++) b.blend(x, y, [1, 0.97, 0.75], pulse); }
+    }
+    const fy = Math.floor(H * 0.92);
+    for (let x = 0; x < W; x += Math.max(3, Math.floor(W / 30))) {
+      const h = 3 + Math.floor(Noise.hash(x, 1, seed) * H * 0.08), sx = Math.round(Math.sin(TAU * (t * half + x * 0.1)) * 1.2);
+      for (let i = 0; i < h; i++) {
+        const px = x + Math.trunc(i * sx / Math.max(1, h));
+        b.set(px, fy - i, [0.18, 0.45, 0.18]);
+        if (i % 2 === 0) { b.set(px - 1, fy - i + 1, [0.25, 0.55, 0.22]); b.set(px + 1, fy - i + 1, [0.25, 0.55, 0.22]); }
+      }
+      if (Noise.hash(x, 2, seed) > 0.8) {
+        const mx = x + 2, my = fy + 2, red = [0.85, 0.15, 0.12];
+        b.set(mx, my, [0.95, 0.9, 0.8]); b.set(mx, my - 1, [0.95, 0.9, 0.8]);
+        for (let dx = -2; dx <= 2; dx++) b.set(mx + dx, my - 2, red);
+        for (let dx = -1; dx <= 1; dx++) b.set(mx + dx, my - 3, red);
+        b.set(mx - 1, my - 2, [1, 1, 1]);
+      }
+    }
+    for (let y = fy; y < H; y++) for (let x = 0; x < W; x++) if (Noise.hash(x, y, 4) > 0.5) b.blend(x, y, [0.10, 0.25, 0.10], 0.5);
+    const kk = Math.max(1, Math.floor(k / 3));
+    for (const p of parts) b.blend(p.x + Math.sin(TAU * (t * kk + p.ph)) * p.sway, p.y + Math.cos(TAU * (t * kk + p.ph)) * p.sway * 0.5, p.c, 0.4 + 0.5 * Math.max(0, Math.sin(TAU * (t * k + p.ph))));
+  };
+
+  const flowers = (b, t) => {
+    const horizon = H * 0.48;
+    sky(b, horizon, t);
+    for (let layer = 0; layer < 2; layer++) {
+      const col = mix([0.35, 0.58, 0.40], skyHor, layer === 0 ? 0.55 : 0.3);
+      for (let x = 0; x < W; x++) {
+        const hy = hill(x, horizon / H + 0.01, layer === 0 ? 0.12 : 0.06, 3, seed + layer);
+        for (let y = Math.max(0, Math.floor(hy)); y < horizon + 2; y++) b.set(x, y, col);
+        if (layer === 1 && Noise.hash(x, 7, seed) > 0.9) disc(b, x, hy - 2, 1.6, mix([0.18, 0.40, 0.22], skyHor, 0.25));
+      }
+    }
+    for (let y = Math.floor(horizon); y < H; y++) { const d = (y - horizon) / (H - horizon); for (let x = 0; x < W; x++) b.put(y * W + x, mix(mix(grass, skyHor, (1 - d) * 0.35), grassDark, ditherBand(d * 0.6, 4, x, y))); }
+    for (let y = Math.floor(horizon) + 1; y < H + 3;) {
+      const d = (y - horizon) / (H - horizon), size = 1 + Math.floor(d * H / 40), step = Math.max(1, Math.floor(1 + d * H / 22));
+      for (let x = 0; x < W; x += step) {
+        const hsh = Noise.hash(Math.floor(x / step), y, seed);
+        if (hsh <= 0.45) continue;
+        const sw = Math.sin(TAU * (t * half + x * 0.02 - d * 0.6)) * d * 2.5, fx = x + sw + Noise.hash(x, y, 2) * step;
+        const c = mix(flowerColors[Math.floor(hsh * 997) % flowerColors.length], skyHor, (1 - d) * 0.4);
+        if (size >= 2) for (let sy = 0; sy < size; sy++) b.set(fx - sw * sy / (size + 1), y + sy, grassDark);
+        for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) b.set(fx + dx - (size >> 1), y - dy, c);
+        if (size >= 3) b.set(fx, y - (size >> 1), [0.95, 0.85, 0.3]);
+      }
+      y += Math.max(1, step >> 1);
+    }
+    for (const p of parts) {
+      const x = Math.floor(p.x + Math.sin(TAU * (t * Math.max(1, Math.floor(k / 4)) + p.ph)) * p.sway * 2);
+      const y = Math.floor(p.y + Math.sin(TAU * (t * Math.max(2, half) + p.ph)) * p.sway * 0.5);
+      const open = Math.sin(TAU * t * k * 3) > 0;
+      b.set(x, y, [0.1, 0.1, 0.1]);
+      if (open) { b.set(x - 1, y - 1, p.c); b.set(x + 1, y - 1, p.c); }
+      b.set(x - 1, y, p.c); b.set(x + 1, y, p.c);
+    }
+  };
+
+  const beach = (b, t) => {
+    const horizon = H * 0.50;
+    sky(b, horizon, t);
+    for (let y = Math.floor(horizon); y < H; y++) {
+      const d = (y - horizon) / (H - horizon);
+      for (let x = 0; x < W; x++) {
+        let c = mix(mix(seaColor, skyHor, (1 - d) * 0.45), [0.2, 0.75, 0.75], d * 0.4);
+        const ph = Noise.hash(Math.floor(x / 3), y, seed);
+        if (ph > 0.85 && Math.sin(TAU * (t * k + ph * 9)) > 0.5) c = mix(c, [1, 1, 1], 0.4);
+        if (Math.abs(x - sunX) < 3 + d * 8 && Noise.hash(x, y, 5) > 0.6 && Math.sin(TAU * (t * k + Noise.hash(x, y, 6) * 7)) > 0.3) c = mix(c, sun, 0.6);
+        b.put(y * W + x, c);
+      }
+    }
+    const shore = H * 0.72, wave = Math.sin(TAU * t * half);
+    for (let x = 0; x < W; x++) {
+      const curve = shore + Math.sin(x / W * TAU * 2 + 1) * H * 0.02, wet = Math.floor(curve - wave * H * 0.025);
+      for (let y = Math.max(0, wet); y < H; y++) {
+        let c = mix([0.95, 0.85, 0.62], [0.85, 0.72, 0.50], ditherBand((y - wet) / H * 3, 3, x, y));
+        if (y < curve + 2) c = scale(c, 0.85);
+        if (Noise.hash(x, y, seed) > 0.985) c = [1, 0.92, 0.85];
+        b.put(y * W + x, c);
+      }
+      for (let fy = 0; fy < 2; fy++) if (Noise.hash(x >> 1, fy, seed + 9) > 0.25) b.set(x, wet - fy, [1, 1, 1]);
+    }
+    for (const p of palms) {
+      const baseY = H * 0.93, n = Math.floor(p.h), sw = Math.sin(TAU * t * half + p.x * 0.05);
+      let topX = 0, topY = 0;
+      for (let i = 0; i <= n; i++) {
+        const f = i / Math.max(1, n), x = p.x + p.lean * p.h * f * f + sw * f * f * 1.5, y = baseY - p.h * f;
+        const th = Math.max(1, Math.floor(H * 0.03 * (1 - f * 0.5)));
+        for (let dx = 0; dx < th; dx++) b.set(x + dx, y, (i >> 1) % 2 === 0 ? [0.55, 0.40, 0.25] : [0.45, 0.32, 0.20]);
+        topX = x; topY = y;
+      }
+      for (let fi = 0; fi < p.fronds; fi++) {
+        const a0 = fi / p.fronds * TAU, dir = Math.cos(a0) >= 0 ? 1 : -1, len = p.h * 0.55, fs = Math.sin(TAU * t * half + fi) * 0.08;
+        for (let i = 0; i < Math.floor(len); i++) {
+          const f = i / len, x = topX + dir * Math.abs(Math.cos(a0)) * len * f + 1, y = topY - Math.sin(a0) * len * 0.35 * f + f * f * len * (0.45 + fs);
+          const col = f < 0.5 ? [0.15, 0.50, 0.20] : [0.25, 0.62, 0.25];
+          b.set(x, y, col); b.set(x, y + 1, scale(col, 0.75)); if (i % 2 === 0) b.set(x, y + 2, scale(col, 0.6));
+        }
+      }
+      disc(b, topX + 1, topY + 2, Math.max(1.2, H * 0.018), [0.40, 0.28, 0.12]);
+    }
+  };
+
+  const waterfall = (b, t) => {
+    const top = H * 0.22, pool = H * 0.70;
+    sky(b, H * 0.6, t);
+    for (let x = 0; x < W; x++) { const hy = hill(x, 0.45, 0.15, 4, seed); for (let y = Math.max(0, Math.floor(hy)); y < H; y++) b.put(y * W + x, mix([0.30, 0.50, 0.40], skyHor, 0.45)); }
+    for (let x = 0; x < W; x++) {
+      const dist = Math.abs(x - fallX) - fallW / 2;
+      if (dist <= -2) continue;
+      const edge = top + Noise.value1D(x / 6, Math.floor(W / 6) + 1, seed) * H * 0.08;
+      for (let y = Math.max(0, Math.floor(edge)); y < pool + 2; y++) {
+        const n = Noise.fbm2D(x / W, y / W, 8, 3, seed + 2);
+        let c = mix([0.45, 0.42, 0.40], [0.30, 0.28, 0.28], ditherBand(n, 4, x, y));
+        if (n > 0.58) c = [0.25, 0.48, 0.22];
+        if (y < edge + 2) c = [0.30, 0.55, 0.25];
+        if (dist < 2) c = scale(c, 0.7);
+        b.set(x, y, c);
+      }
+      if (Noise.hash(x, 3, seed) > 0.88 && dist > 4) {
+        const th = 4 + Math.floor(Noise.hash(x, 4, seed) * H * 0.08);
+        for (let i = 0; i < th; i++) { const hw = (th - i) >> 1; for (let dx = -hw; dx <= hw; dx++) b.set(x + dx, Math.floor(edge) - i, [0.10, 0.32, 0.18]); }
+      }
+    }
+    const P = 64, shift = Math.floor(t * P * half * 2);
+    for (let y = Math.floor(top); y < pool; y++) for (let x = Math.floor(fallX - fallW / 2); x <= fallX + fallW / 2; x++) {
+      const n = Noise.hash(x, wrap(y - shift, P), seed + 5);
+      let c = mix([0.55, 0.78, 0.95], [0.95, 0.98, 1], n > 0.55 ? 0.8 : 0.2);
+      if (Math.abs(x - fallX) / (fallW / 2) > 0.85) c = scale(c, 0.85);
+      b.set(x, y, c);
+    }
+    for (let y = Math.floor(pool); y < H; y++) {
+      const d = (y - pool) / (H - pool);
+      for (let x = 0; x < W; x++) {
+        let c = mix([0.15, 0.45, 0.55], [0.08, 0.25, 0.35], d);
+        const ph = Noise.hash(x >> 1, y, seed + 8);
+        if (ph > 0.8 && Math.sin(TAU * (t * k + ph * 11)) > 0.4) c = mix(c, [1, 1, 1], 0.35);
+        b.put(y * W + x, c);
+      }
+    }
+    for (let x = Math.floor(fallX - fallW); x <= fallX + fallW; x++) for (let y = Math.floor(pool) - 2; y <= pool + 3; y++) {
+      const n = Noise.hash(x, y, seed + 10);
+      if (n > 0.35 && Math.sin(TAU * (t * k * 2 + n * 7)) > -0.2) b.set(x, y, [1, 1, 1]);
+    }
+    if (rainbow) {
+      const cols = [[1, 0.3, 0.3], [1, 0.7, 0.2], [1, 1, 0.3], [0.3, 0.9, 0.3], [0.3, 0.6, 1], [0.6, 0.4, 1]], R = fallW * 1.8;
+      cols.forEach((c, i) => { const r = R - i; for (let a = Math.PI * 1.05; a < Math.PI * 1.95; a += 0.02) b.blend(fallX + Math.cos(a) * r, pool + Math.sin(a) * r * 0.8, c, 0.35); });
+    }
+    const band = H * 0.15;
+    for (const p of parts) {
+      const y = p.y - ((t * band + p.ph * band) % band);
+      b.blend(p.x + Math.sin(TAU * (t * half + p.ph)) * p.sway, y, p.c, 0.35);
+    }
+  };
+
+  const draw = { forest, bigtree: treeScene, autumn: treeScene, blossom: treeScene, flowers, beach, waterfall }[kind];
+  return { w: W, h: H, render(phase) { const b = new Buffer(W, H); draw(b, phase); return b; } };
+}
+for (const [key, label] of Object.entries(NATURE)) SCENES[key] = { group: '2D', cat: 'Nature', label, make: s => nature(key, s) };
+
+
+/* ---------------- 3D voxel-space terrain (flyover / orbit) ---------------- */
+function terrain3D(mode, s) {
+  const { mix, scale, clamp, ditherBand, wrap, Noise, RNG, Buffer } = PX;
+  const rng = new RNG(s.seed);
+  const w = s.w, h = s.h;
+  const N = mode === 'flyover' ? 256 : 160;
+  const seed = rng.next() | 0;
+  const tod = rng.pick(['day', 'golden', 'dusk', 'night']);
+  const night = tod === 'night';
+  const mountainous = rng.range(0.3, 1);
+  const water = mode === 'orbit' ? rng.range(0.18, 0.28) : rng.range(0.12, 0.32);
+  const cloudSeed = rng.next() | 0, cloudCover = rng.range(0.35, 0.7);
+  const cloudCycles = s.duration >= 8 ? 1 : 0;
+  const waveCycles = Math.max(1, Math.round(s.duration));
+  const startX = rng.range(0, N);
+  let skyTop, skyHorizon, sunColor;
+  if (tod === 'day') { skyTop = [0.25, 0.50, 0.90]; skyHorizon = [0.78, 0.88, 0.98]; sunColor = [1, 0.97, 0.85]; }
+  else if (tod === 'golden') { skyTop = [0.35, 0.45, 0.80]; skyHorizon = [1.0, 0.80, 0.55]; sunColor = [1, 0.85, 0.55]; }
+  else if (tod === 'dusk') { skyTop = [0.18, 0.12, 0.38]; skyHorizon = [0.98, 0.50, 0.40]; sunColor = [1, 0.65, 0.40]; }
+  else { skyTop = [0.02, 0.03, 0.10]; skyHorizon = [0.10, 0.14, 0.28]; sunColor = [0.85, 0.90, 1.0]; }
+  const sunAz = rng.range(0, TAU);
+  const sunEl = tod === 'day' ? 0.9 : (night ? 0.7 : 0.25);
+  const waterDeep = mix([0.05, 0.18, 0.38], skyTop, 0.2), waterShallow = mix([0.15, 0.50, 0.60], skyHorizon, 0.2);
+
+  const hs = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = x / N, v = y / N;
+    const base = Noise.fbm2D(u, v, 4, 6, seed);
+    const rdg = Noise.fbm2D(u, v, 3, 5, (seed + 5) | 0, true);
+    let hg = base * (1 - mountainous * 0.6) + rdg * mountainous * 0.6;
+    hg = Math.pow(hg, 1.6) * 1.5;
+    if (mode === 'orbit') {
+      const dx = u - 0.5, dy = v - 0.5, d = Math.sqrt(dx * dx + dy * dy) * 2.4;
+      hg = hg * Math.max(0, 1 - d * d) * 1.4 + Math.max(0, 0.15 - d * 0.1);
+    }
+    hs[y * N + x] = hg;
+  }
+  const lx = Math.cos(sunAz) * Math.cos(sunEl), ly = Math.sin(sunAz) * Math.cos(sunEl), lz = Math.sin(sunEl);
+  const cs = new Array(N * N);
+  const snowLine = rng.range(0.62, 0.8);
+  const grass = rng.chance(0.2) ? [0.55, 0.55, 0.25] : [0.30, 0.55, 0.22];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const hg = hs[y * N + x];
+    const hx = hs[y * N + wrap(x + 1, N)] - hs[y * N + wrap(x - 1, N)];
+    const hy = hs[wrap(y + 1, N) * N + x] - hs[wrap(y - 1, N) * N + x];
+    let nx = -hx * 40, ny = -hy * 40, nz = 1;
+    const nl = Math.sqrt(nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl;
+    const diffuse = Math.max(0, nx * lx + ny * ly + nz * lz);
+    const steep = 1 - nz, n = Noise.hash(x, y, seed);
+    let c;
+    if (hg < water + 0.02) c = [0.85, 0.78, 0.55];
+    else if (hg > snowLine - steep * 0.3 + n * 0.04) c = [0.95, 0.96, 1.0];
+    else if (steep > 0.45) c = [0.50, 0.44, 0.40];
+    else {
+      const forest = Noise.fbm2D(x / N, y / N, 8, 3, (seed + 9) | 0);
+      c = forest > 0.55 ? [0.12, 0.35, 0.15] : grass;
+      if (hg > snowLine - 0.15) c = mix(c, [0.5, 0.45, 0.4], 0.6);
+    }
+    c = mix(c, scale(c, 1.1), n * 0.3);
+    const light = 0.35 + diffuse * 0.85;
+    c = [c[0] * light * (0.6 + 0.4 * sunColor[0]), c[1] * light * (0.6 + 0.4 * sunColor[1]), c[2] * light * (0.6 + 0.4 * sunColor[2])];
+    if (night) c = mix(scale(c, 0.35), [0.1, 0.15, 0.35], 0.3);
+    cs[y * N + x] = clamp(c);
+  }
+
+  let cam = new Float32Array(128);
+  if (mode === 'flyover') {
+    const raw = new Float32Array(128);
+    for (let i = 0; i < 128; i++) {
+      const py = i / 128 * N; let m = water;
+      for (let dy = -4; dy <= 40; dy += 4) for (let dx = -12; dx <= 12; dx += 4)
+        m = Math.max(m, hs[wrap(Math.trunc(py) + dy, N) * N + wrap(Math.trunc(startX) + dx, N)]);
+      raw[i] = m;
+    }
+    for (let i = 0; i < 128; i++) { let acc = 0; for (let k = -12; k <= 12; k++) acc = Math.max(acc, raw[wrap(i + k, 128)]); cam[i] = acc; }
+    for (let it = 0; it < 4; it++) {
+      const c2 = new Float32Array(128);
+      for (let i = 0; i < 128; i++) c2[i] = (cam[wrap(i - 2, 128)] + cam[wrap(i - 1, 128)] + cam[i] + cam[wrap(i + 1, 128)] + cam[wrap(i + 2, 128)]) / 5;
+      cam = c2;
+    }
+  }
+
+  function render(t) {
+    const buf = new Buffer(w, h);
+    const fov = 1.15, heightScale = N * 0.28;
+    let camX, camY, camZ, yaw, horizon;
+    if (mode === 'flyover') {
+      const sway = Math.sin(TAU * t);
+      camX = startX + sway * 6; camY = t * N;
+      const fi = t * 128, i0 = Math.trunc(fi) % 128, i1 = (i0 + 1) % 128, f = fi - Math.floor(fi);
+      camZ = (cam[i0] * (1 - f) + cam[i1] * f) * heightScale + 14;
+      yaw = Math.PI / 2 + sway * 0.12; horizon = h * 0.38;
+    } else {
+      const a = TAU * t, R = N * 0.95;
+      camX = N / 2 + Math.cos(a) * R; camY = N / 2 + Math.sin(a) * R;
+      camZ = heightScale * 1.7; yaw = a + Math.PI; horizon = h * 0.12;
+    }
+    const projScale = h * 0.9;
+    const maxDist = mode === 'flyover' ? N * 1.1 : N * 1.9;
+    const sunScreenY = horizon - sunEl * h * 0.35, sunR = h * 0.06;
+    for (let y = 0; y < h; y++) {
+      const ty = Math.max(0, Math.min(1, y / Math.max(1, horizon + h * 0.1)));
+      const elev = (horizon - y) / h;
+      for (let x = 0; x < w; x++) {
+        const az = yaw + (x / w - 0.5) * fov;
+        let c = mix(skyTop, skyHorizon, ditherBand(Math.pow(ty, 1.3), 8, x, y));
+        let dAz = (az - sunAz) % TAU; if (dAz > Math.PI) dAz -= TAU; if (dAz < -Math.PI) dAz += TAU;
+        const dx = dAz / fov * w, dy = y - sunScreenY, d = Math.sqrt(dx * dx + dy * dy);
+        if (d < sunR) c = sunColor;
+        else { const g = Math.max(0, 1 - d / (h * (night ? 0.4 : 0.8))); c = mix(c, sunColor, ditherBand(g * g * 0.6, 5, x, y)); }
+        if (night && Noise.hash(Math.trunc(az * 80), y, 3) > 0.985) c = mix(c, [1, 1, 1], 0.5 + 0.5 * Math.sin(TAU * (t * 2 + Noise.hash(x, y, 4))));
+        if (elev > 0.02 && elev < 0.45) {
+          let u = az / TAU; u -= Math.floor(u); u += t * cloudCycles;
+          const cd = Noise.fbm2D(u - Math.floor(u), elev * 1.2, 8, 4, cloudSeed);
+          const thr = 1 - cloudCover * 0.6;
+          if (cd > thr + PX.bayer(x, y) * 0.04) {
+            const lit = cd > thr + 0.07;
+            const base = night ? [0.25, 0.28, 0.4] : mix([1, 1, 1], sunColor, 0.25);
+            c = mix(lit ? base : mix(base, skyTop, 0.35), c, elev < 0.06 ? 0.5 : 0.1);
+          }
+        }
+        buf.put(y * w + x, c);
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      const a = (x / w - 0.5) * fov, dirX = Math.cos(yaw + a), dirY = Math.sin(yaw + a), cosA = Math.cos(a);
+      let yTop = h, z = 1, dz = 0.25;
+      while (z < maxDist && yTop > 0) {
+        const wx = camX + dirX * z, wy = camY + dirY * z;
+        let xi = Math.floor(wx), yi = Math.floor(wy), inside = true;
+        if (mode === 'flyover') { xi = wrap(xi, N); yi = wrap(yi, N); }
+        else if (xi < 0 || yi < 0 || xi >= N || yi >= N) inside = false;
+        if (!inside) {
+          const sy = horizon + (camZ - water * heightScale) / (z * cosA) * projScale;
+          if (sy < yTop) {
+            const fog = Math.min(1, z / maxDist), wc = mix(waterDeep, skyHorizon, fog * 0.9);
+            for (let yy = Math.max(0, Math.trunc(sy)); yy < Math.trunc(yTop); yy++) {
+              const sparkle = Noise.hash(Math.trunc(wx / 2), yy, 77);
+              const shimmer = sparkle > 0.9 && Math.sin(TAU * (t * waveCycles + sparkle * 13)) > 0.6;
+              buf.put(yy * w + x, shimmer ? mix(wc, skyHorizon, 0.5) : wc);
+            }
+            yTop = sy;
+          }
+          z += dz; dz *= 1.02; continue;
+        }
+        const idx = yi * N + xi, hv = hs[idx];
+        let surface = hv, col;
+        if (hv < water) {
+          surface = water;
+          col = mix(waterShallow, waterDeep, Math.min(1, (water - hv) / 0.12));
+          const ph = Noise.hash(Math.trunc(wx), Math.trunc(wy), 11);
+          if (ph > 0.85 && Math.sin(TAU * (t * waveCycles + ph * 17)) > 0.5) col = mix(col, skyHorizon, 0.45);
+        } else col = cs[idx];
+        const sy = horizon + (camZ - surface * heightScale) / (z * cosA) * projScale;
+        if (sy < yTop) {
+          const fc = mix(col, skyHorizon, Math.pow(Math.min(1, z / maxDist), 1.4));
+          for (let yy = Math.max(0, Math.trunc(sy)); yy < Math.min(h, Math.trunc(yTop)); yy++) buf.put(yy * w + x, fc);
+          yTop = sy;
+        }
+        z += dz; dz *= 1.012;
+      }
+    }
+    return buf;
+  }
+  return { w, h, render };
+}
+
+/* ---------------- 3D isometric voxel island ---------------- */
+function isoIsland(rs) {
+  const { mix, scale, ditherBand, Noise, RNG, Buffer } = PX;
+  const rng = new RNG(rs.seed);
+  const w = rs.w, h = rs.h;
+  const floating = rng.chance(0.45), night = rng.chance(0.25);
+  const G = Math.max(8, Math.trunc(w / 10));
+  const a = Math.max(2, Math.trunc(Math.trunc(w * 0.86 / (2 * G)) / 2) * 2);
+  const s = Math.max(1, Math.trunc(a * 2 / 3));
+  const maxZ = Math.max(4, Math.min(12, Math.trunc(Math.trunc(h * 0.30) / s)));
+  const waterLevel = floating ? -100 : 1;
+  const cycles = rs.duration >= 4 ? 1 : 0, waveCycles = Math.max(1, Math.round(rs.duration));
+  const seed = rng.next() | 0;
+  let skyTop, skyBottom;
+  if (night) { skyTop = [0.03, 0.04, 0.12]; skyBottom = [0.15, 0.18, 0.38]; }
+  else if (rng.chance(0.5)) { skyTop = [0.35, 0.60, 0.95]; skyBottom = [0.80, 0.92, 1.0]; }
+  else { skyTop = [0.45, 0.35, 0.75]; skyBottom = [1.0, 0.75, 0.60]; }
+  const grassTint = rng.pick([[0.40, 0.72, 0.30], [0.55, 0.75, 0.30], [0.30, 0.65, 0.40], [0.85, 0.55, 0.65]]);
+  const hgt = new Int32Array(G * G), bottom = new Int32Array(G * G), tiles = new Array(G * G).fill('grass'), trees = new Uint8Array(G * G);
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    const u = x / G, v = y / G;
+    const n = Noise.fbm2D(u, v, 3, 4, seed);
+    const dx = u - 0.5 + 0.5 / G, dy = v - 0.5 + 0.5 / G, d = Math.sqrt(dx * dx + dy * dy) * 2;
+    let hf = n * 1.4 - d * d * 1.1;
+    if (floating) hf = d < 0.92 - n * 0.25 ? Math.max(0.08, hf + 0.25) : -1;
+    const i = y * G + x;
+    if (hf <= 0 && floating) { hgt[i] = -100; continue; }
+    const z = Math.max(0, Math.min(maxZ, Math.trunc(hf * maxZ * (floating ? 0.9 : 1.6))));
+    hgt[i] = z;
+    bottom[i] = floating ? -Math.trunc((1 - d) * maxZ * 1.1 * (0.6 + Noise.hash(x, y, seed) * 0.6)) : 0;
+    let t = 'grass';
+    if (!floating && z <= waterLevel) t = 'water';
+    else if (!floating && z === waterLevel + 1) t = 'sand';
+    else if (z >= maxZ - 1) t = 'snow';
+    else if (z >= maxZ - 3) t = 'rock';
+    if (t === 'grass' && rng.chance(0.03)) t = 'house';
+    tiles[i] = t;
+    trees[i] = t === 'grass' && rng.chance(0.18) ? 1 : 0;
+  }
+  const sw = 2 * a, sh = a + s, sprite = new Uint8Array(sw * sh);
+  for (let py = 0; py < sh; py++) for (let px = 0; px < sw; px++) {
+    const fx = px + 0.5, fy = py + 0.5;
+    if (Math.abs(fx - a) / a + Math.abs(fy - a / 2) / (a / 2) <= 1) { sprite[py * sw + px] = 1; continue; }
+    const lower = a / 2 + (a / 2) * (1 - Math.abs(fx - a) / a);
+    if (fy > lower - 0.01 && fy < lower + s + 0.01 && fy >= a / 2) sprite[py * sw + px] = px < a ? 2 : 3;
+  }
+  for (let py = 0; py < sh; py++) for (let px = 0; px < sw; px++)
+    if (sprite[py * sw + px] === 1 && (py === 0 || sprite[(py - 1) * sw + px] !== 1)) sprite[py * sw + px] = 4;
+  const clouds = [], nc = rng.int(2, 4);
+  for (let i = 0; i < nc; i++) clouds.push([rng.range(0, w), rng.range(0.08, 0.35) * h, rng.range(3, 7) * w / 160]);
+  const totalH = Math.trunc(G * a / 2) * 2 + maxZ * s;
+  const ox = Math.trunc(w / 2) - a;
+  const oy = Math.trunc((h - totalH) / 2) + maxZ * s - (floating ? s * 2 : 0);
+
+  function color(t, top) {
+    switch (t) {
+      case 'grass': return top ? grassTint : [0.55, 0.38, 0.25];
+      case 'sand': return [0.92, 0.84, 0.58];
+      case 'rock': return [0.55, 0.52, 0.55];
+      case 'snow': return top ? [0.96, 0.97, 1.0] : [0.55, 0.52, 0.55];
+      case 'dirt': return [0.50, 0.35, 0.24];
+      case 'water': return [0.20, 0.50, 0.85];
+      default: return top ? [0.80, 0.25, 0.20] : [0.95, 0.90, 0.80]; // house
+    }
+  }
+  function drawCube(buf, sx, sy, top, side, light, edge) {
+    const cTop = scale(top, light), cEdge = edge ? scale(mix(top, [1, 1, 1], 0.25), light) : cTop;
+    const cL = scale(side, 0.80 * light), cR = scale(side, 0.58 * light);
+    for (let py = 0; py < sh; py++) for (let px = 0; px < sw; px++) {
+      const k = sprite[py * sw + px]; if (!k) continue;
+      buf.set(sx + px, sy + py, k === 1 ? cTop : k === 4 ? cEdge : k === 2 ? cL : cR);
+    }
+  }
+  function render(t) {
+    const buf = new Buffer(w, h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let c = mix(skyTop, skyBottom, ditherBand(y / h, 8, x, y));
+      if (night && Noise.hash(x, y, 1) > 0.992) c = mix([1, 1, 0.9], c, 0.5 - 0.5 * Math.sin(TAU * (t * 2 + Noise.hash(x, y, 2))));
+      buf.put(y * w + x, c);
+    }
+    if (!floating) {
+      const seaY = oy + Math.trunc(G * a / 4);
+      for (let y = Math.max(0, seaY); y < h; y++) for (let x = 0; x < w; x++) {
+        const k = (y - seaY) / Math.max(1, h - seaY);
+        let c = mix(mix([0.30, 0.55, 0.85], [0.10, 0.30, 0.60], k), skyBottom, 0.25 * (1 - k));
+        if (night) c = scale(c, 0.4);
+        const ph = Noise.hash(Math.floor(x / 2), y, 5);
+        if (ph > 0.92 && Math.sin(TAU * (t * waveCycles + ph * 11)) > 0.4) c = mix(c, [1, 1, 1], 0.35);
+        buf.put(y * w + x, c);
+      }
+    }
+    const bob = floating ? Math.round(Math.sin(TAU * t) * 1.5) : 0;
+    const light = night ? 0.55 : 1;
+    for (let sum = 0; sum < 2 * G - 1; sum++) for (let gx = 0; gx < G; gx++) {
+      const gy = sum - gx; if (gy < 0 || gy >= G) continue;
+      const i = gy * G + gx, top = hgt[i]; if (top < -50) continue;
+      const bx = ox + (gx - gy) * a, by = oy + Math.trunc((gx + gy) * a / 2) + bob;
+      const tile = tiles[i], start = floating ? bottom[i] : 0;
+      for (let z = start; z <= top; z++) {
+        const isTop = z === top;
+        let tc = color(tile, isTop), sc = color(isTop ? tile : (z < 0 ? 'rock' : 'dirt'), false);
+        if (tile === 'water') {
+          const wave = Math.sin(TAU * (t * waveCycles) + (gx + gy) * 0.7);
+          tc = mix(tc, [0.6, 0.85, 1], Math.max(0, wave) * 0.35); sc = [0.15, 0.40, 0.70];
+        }
+        if (z < 0) { tc = [0.45, 0.38, 0.35]; sc = [0.45 - (-z) * 0.02, 0.36, 0.32]; }
+        if (tile === 'house' && isTop) {
+          drawCube(buf, bx, by - z * s, color('grass', true), color('dirt', false), light, false);
+          drawCube(buf, bx, by - (z + 1) * s, tc, sc, light, true);
+          if (night) buf.set(bx + Math.trunc(a / 2), by - (z + 1) * s + a, [1, 0.85, 0.4]);
+          continue;
+        }
+        if (isTop && tile !== 'water') tc = scale(tc, 0.92 + Noise.hash(gx, gy, 3) * 0.16);
+        let edge = false;
+        if (isTop && tile !== 'water') {
+          const b1 = gx > 0 ? hgt[gy * G + gx - 1] : -100, b2 = gy > 0 ? hgt[(gy - 1) * G + gx] : -100;
+          edge = b1 < top || b2 < top;
+        }
+        drawCube(buf, bx, by - z * s, tc, sc, light, edge);
+      }
+      if (trees[i]) {
+        const cx = bx + a, cy = by - top * s + Math.trunc(a / 2);
+        const sway = Math.round(Math.sin(TAU * t * Math.max(1, Math.trunc(waveCycles / 2)) + gx * 0.5) * 0.6);
+        const leaf = scale([0.12, 0.42, 0.18], light), leafLit = scale([0.25, 0.60, 0.25], light);
+        buf.set(cx, cy, [0.35, 0.22, 0.12]); buf.set(cx, cy - 1, [0.35, 0.22, 0.12]);
+        const th = a + 2;
+        for (let k = 0; k < th; k++) {
+          const half = Math.trunc((th - k) / 2);
+          for (let dx = -half; dx <= half; dx++) buf.set(cx + dx + (k > th / 2 ? sway : 0), cy - 2 - k, dx < 0 ? leafLit : leaf);
+        }
+      }
+    }
+    for (const [cx0, cy0, cr] of clouds) {
+      const x0 = (cx0 + t * (w + 30) * cycles) % (w + 30) - 15;
+      for (const [dx, dy, r] of [[0, 0, cr], [cr, -cr * 0.4, cr * 1.2], [cr * 2.2, 0, cr * 0.9]]) {
+        const ri = Math.trunc(r) + 1;
+        for (let yy = -ri; yy <= ri; yy++) for (let xx = -ri; xx <= ri; xx++) {
+          const fy = yy * 1.4; if (xx * xx + fy * fy > r * r) continue;
+          buf.blend(Math.trunc(x0 + dx) + xx, Math.trunc(cy0 + dy) + yy, night ? [0.4, 0.42, 0.55] : (yy < 0 ? [1, 1, 1] : [0.85, 0.88, 0.95]), 0.92);
+        }
+      }
+    }
+    return buf;
+  }
+  return { w, h, floating, render };
+}
+
+SCENES.flyover = { group: '3D', label: 'Flyover', hint: 'Fly forever over endless terrain.', make: s => terrain3D('flyover', s) };
+SCENES.orbit = { group: '3D', label: 'Orbit', hint: 'Circle around a generated island.', make: s => terrain3D('orbit', s) };
+SCENES.isometric = { group: '3D', label: 'Isometric island', hint: 'A tiny voxel diorama, on the sea or floating in the sky.', make: s => isoIsland(s) };
+
+/* ---------------- Photo → animated pixel art ---------------- */
+function quantize(buf, k) {
+  const n = buf.w * buf.h, d = buf.d, rng = new PX.RNG(1);
+  const cen = []; for (let j = 0; j < k; j++) { const i = rng.int(0, n - 1) * 3; cen.push([d[i], d[i + 1], d[i + 2]]); }
+  const assign = new Uint16Array(n);
+  for (let it = 0; it < 8; it++) {
+    for (let i = 0; i < n; i++) {
+      const r = d[i * 3], g = d[i * 3 + 1], b = d[i * 3 + 2];
+      let best = 0, bd = Infinity;
+      for (let j = 0; j < k; j++) { const c = cen[j]; const dd = (r - c[0]) ** 2 * 0.3 + (g - c[1]) ** 2 * 0.59 + (b - c[2]) ** 2 * 0.11; if (dd < bd) { bd = dd; best = j; } }
+      assign[i] = best;
+    }
+    const sums = cen.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < n; i++) { const S = sums[assign[i]]; S[0] += d[i * 3]; S[1] += d[i * 3 + 1]; S[2] += d[i * 3 + 2]; S[3]++; }
+    for (let j = 0; j < k; j++) if (sums[j][3]) cen[j] = [sums[j][0] / sums[j][3], sums[j][1] / sums[j][3], sums[j][2] / sums[j][3]];
+  }
+  const out = new PX.Buffer(buf.w, buf.h);
+  for (let i = 0; i < n; i++) out.put(i, cen[assign[i]]);
+  return out;
+}
+
+/** source: PX.Buffer of size (w + 2m) x (h + 2m), m = margin(w) */
+const photoMargin = w => Math.max(2, Math.trunc(w / 24));
+function pictureScene(source, s, colors, effect) {
+  const { Noise, RNG, Buffer } = PX;
+  const w = s.w, h = s.h, margin = photoMargin(w);
+  const src = quantize(source, colors);
+  const rng = new RNG(s.seed);
+  const sparkles = [];
+  for (let i = 0; i < ((w * h / 30) | 0); i++) {
+    const x = rng.int(0, src.w - 1), y = rng.int(0, src.h - 1);
+    if (PX.luma(src.get(x, y)) > 0.6) sparkles.push([x, y, rng.float(), rng.int(1, 2)]);
+  }
+  function render(t) {
+    const buf = new Buffer(w, h);
+    const dx = Math.round(Math.cos(TAU * t) * margin * 0.9), dy = Math.round(Math.sin(TAU * t) * margin * 0.5);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) buf.put(y * w + x, src.get(x + margin + dx, y + margin + dy));
+    const W = [1, 1, 1];
+    if (effect === 'sparkle') {
+      for (const [sx, sy, ph, k] of sparkles) {
+        const a = Math.max(0, Math.sin(TAU * (t * k + ph))), x = sx - margin - dx, y = sy - margin - dy;
+        buf.blend(x, y, W, a);
+        if (a > 0.8) { buf.blend(x - 1, y, W, 0.5); buf.blend(x + 1, y, W, 0.5); buf.blend(x, y - 1, W, 0.5); buf.blend(x, y + 1, W, 0.5); }
+      }
+    } else if (effect === 'snow' || effect === 'rain') {
+      const count = Math.trunc(w * h / (effect === 'snow' ? 50 : 35));
+      for (let i = 0; i < count; i++) {
+        const fx = Noise.hash(i, 1, 9) * w, fy = Noise.hash(i, 2, 9) * h, near = Noise.hash(i, 3, 9) > 0.7;
+        const fall = effect === 'snow' ? (near ? 2 : 1) : (near ? 6 : 4);
+        const y = (fy + t * h * fall) % h;
+        if (effect === 'snow') {
+          const x = fx + Math.sin(TAU * (t * 2 + Noise.hash(i, 4, 9))) * 2;
+          buf.blend(x, y, W, 0.9);
+          if (near) { buf.blend(x + 1, y, W, 0.9); buf.blend(x, y + 1, W, 0.9); buf.blend(x + 1, y + 1, W, 0.9); }
+        } else {
+          const x = fx - y * 0.25;
+          for (let k = 0; k < (near ? 3 : 2); k++) buf.blend(Math.trunc(x) + Math.trunc(k / 2), Math.trunc(y) + k, [0.75, 0.85, 1], near ? 0.6 : 0.4);
+        }
+      }
+    }
+    return buf;
+  }
+  return { w, h, render };
+}
+
+/* =====================================================================
+   GIF89a encoder (global palette ≤ 256, LZW, looping)
+   frames: array of {data: Uint8ClampedArray RGBA, width, height} at native size
+   ===================================================================== */
+function buildPalette(frames) {
+  const exact = new Map();
+  let overflow = false;
+  for (const f of frames) {
+    const d = f.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const key = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+      if (!exact.has(key)) { if (exact.size >= 256) { overflow = true; break; } exact.set(key, exact.size); }
+    }
+    if (overflow) break;
+  }
+  if (!overflow) {
+    const pal = new Uint8Array(768);
+    for (const [key, idx] of exact) { pal[idx * 3] = key >> 16; pal[idx * 3 + 1] = (key >> 8) & 255; pal[idx * 3 + 2] = key & 255; }
+    return { pal, index: (r, g, b) => exact.get((r << 16) | (g << 8) | b) };
+  }
+  // popularity over 5-bit-per-channel buckets
+  const cnt = new Float64Array(32768), sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
+  const step = Math.max(1, Math.floor(frames.length / 48));
+  for (let fi = 0; fi < frames.length; fi += step) {
+    const d = frames[fi].data;
+    for (let i = 0; i < d.length; i += 4) {
+      const k = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3);
+      cnt[k]++; sr[k] += d[i]; sg[k] += d[i + 1]; sb[k] += d[i + 2];
+    }
+  }
+  const used = []; for (let k = 0; k < 32768; k++) if (cnt[k]) used.push(k);
+  used.sort((a, b) => cnt[b] - cnt[a]);
+  const chosen = used.slice(0, 256);
+  const pal = new Uint8Array(768), pr = [], pg = [], pb = [];
+  chosen.forEach((k, i) => { pr[i] = sr[k] / cnt[k]; pg[i] = sg[k] / cnt[k]; pb[i] = sb[k] / cnt[k]; pal[i * 3] = pr[i]; pal[i * 3 + 1] = pg[i]; pal[i * 3 + 2] = pb[i]; });
+  const lut = new Int16Array(32768).fill(-1);
+  return {
+    pal, index(r, g, b) {
+      const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      let v = lut[k];
+      if (v < 0) {
+        let best = 0, bd = Infinity;
+        for (let i = 0; i < chosen.length; i++) { const dd = (pr[i] - r) ** 2 * 0.3 + (pg[i] - g) ** 2 * 0.59 + (pb[i] - b) ** 2 * 0.11; if (dd < bd) { bd = dd; best = i; } }
+        v = lut[k] = best;
+      }
+      return v;
+    }
+  };
+}
+
+class ByteOut {
+  constructor() { this.buf = new Uint8Array(1 << 16); this.n = 0; }
+  byte(b) { if (this.n >= this.buf.length) { const nb = new Uint8Array(this.buf.length * 2); nb.set(this.buf); this.buf = nb; } this.buf[this.n++] = b; }
+  u16(v) { this.byte(v & 255); this.byte((v >> 8) & 255); }
+  str(s) { for (let i = 0; i < s.length; i++) this.byte(s.charCodeAt(i)); }
+  bytes(a) { for (let i = 0; i < a.length; i++) this.byte(a[i]); }
+  result() { return this.buf.slice(0, this.n); }
+}
+
+function lzwEncode(indices, out) {
+  const minCode = 8, clear = 256, eoi = 257;
+  out.byte(minCode);
+  const block = new Uint8Array(255); let bl = 0;
+  let acc = 0, nbits = 0;
+  const flushByte = b => { block[bl++] = b; if (bl === 255) { out.byte(255); out.bytes(block); bl = 0; } };
+  const emit = (code, size) => { acc |= code << nbits; nbits += size; while (nbits >= 8) { flushByte(acc & 255); acc >>>= 8; nbits -= 8; } };
+  let codeSize = minCode + 1, next = eoi + 1, dict = new Map();
+  emit(clear, codeSize);
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i], key = prefix * 256 + k;
+    const found = dict.get(key);
+    if (found !== undefined) { prefix = found; continue; }
+    emit(prefix, codeSize);
+    if (next === 4096) { emit(clear, codeSize); next = eoi + 1; codeSize = minCode + 1; dict = new Map(); }
+    else { if (next >= (1 << codeSize)) codeSize++; dict.set(key, next++); }
+    prefix = k;
+  }
+  emit(prefix, codeSize);
+  emit(eoi, codeSize);
+  if (nbits > 0) flushByte(acc & 255);
+  if (bl > 0) { out.byte(bl); out.bytes(block.subarray(0, bl)); }
+  out.byte(0);
+}
+
+/** Encodes frames (upscaled by integer k, nearest neighbour). onProgress(fraction) may return a promise (used to yield). */
+async function encodeGIF(frames, fps, k, onProgress) {
+  const w = frames[0].width, h = frames[0].height, W = w * k, H = h * k;
+  const { pal, index } = buildPalette(frames);
+  const out = new ByteOut();
+  out.str('GIF89a'); out.u16(W); out.u16(H); out.byte(0xF7); out.byte(0); out.byte(0); out.bytes(pal);
+  out.byte(0x21); out.byte(0xFF); out.byte(11); out.str('NETSCAPE2.0'); out.byte(3); out.byte(1); out.u16(0); out.byte(0);
+  const idx = new Uint8Array(W * H), row = new Uint8Array(W);
+  for (let f = 0; f < frames.length; f++) {
+    const d = frames[f].data;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; const v = index(d[i], d[i + 1], d[i + 2]); for (let j = 0; j < k; j++) row[x * k + j] = v; }
+      for (let j = 0; j < k; j++) idx.set(row, (y * k + j) * W);
+    }
+    const delay = Math.round((f + 1) * 100 / fps) - Math.round(f * 100 / fps);
+    out.byte(0x21); out.byte(0xF9); out.byte(4); out.byte(0x04); out.u16(delay); out.byte(0); out.byte(0);
+    out.byte(0x2C); out.u16(0); out.u16(0); out.u16(W); out.u16(H); out.byte(0);
+    lzwEncode(idx, out);
+    if (onProgress) await onProgress((f + 1) / frames.length);
+  }
+  out.byte(0x3B);
+  return out.result();
+}
+
+/* =====================================================================
+   App (browser only)
+   ===================================================================== */
+if (typeof document !== 'undefined') (function app() {
+  const $ = id => document.getElementById(id);
+  const SIZES = [['Huge', 48, 27], ['Big', 80, 45], ['Medium', 160, 90], ['Small', 256, 144], ['Tiny', 384, 216]];
+  const state = {
+    mode: '2D', theme2d: 'random', scene3d: 'flyover', size: 2, seed: 1 + Math.floor(Math.random() * 999999),
+    animated: true, duration: 4, fps: 12, parallax: true, colors: 24, effect: 'sparkle',
+    frames: [], frameFps: 12, sceneName: '', photo: null, gen: 0, busy: false, currentGif: null,
+  };
+  const shelf = [];
+  const view = $('view'), vctx = view.getContext('2d');
+  let dl, dlReady = false;
+
+  // ---------- downloads capability ----------
+  (async () => {
+    if (window.claude && window.claude.use) {
+      try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
+    } else {
+      // Standalone site (e.g. GitHub Pages): plain browser downloads
+      dl = { async save({ filename, data }) {
+        const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        return { status: 'saved' };
+      } };
+    }
+    dlReady = true;
+    if (!dl) { document.querySelectorAll('.save').forEach(b => b.hidden = true); $('savenote').hidden = false; renderShelf(); }
+  })();
+
+  async function saveFile(filename, blob) {
+    if (!dlReady) { toast('Saving is still getting ready. Try again in a moment.'); return; }
+    if (!dl) { toast("Saving files isn't available in this view."); return; }
+    try { await dl.save({ filename, data: blob }); toast('Saved ' + filename + '.'); }
+    catch (e) {
+      const code = e && e.code;
+      if (code === 'declined') toast('Save cancelled.');
+      else if (code === 'rate_limited') toast('Another save is still open. Finish it, then try again.');
+      else if (code === 'too_large') toast('That file is too large to save here. Try a bigger pixel size or a shorter loop.');
+      else toast("Couldn't save the file" + (e && e.message ? ': ' + e.message : '.'));
+    }
+  }
+
+  // ---------- toast / status ----------
+  let toastTimer;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 4500); }
+  const status = msg => $('status').textContent = msg;
+  const yieldUI = () => new Promise(r => setTimeout(r, 0));
+  function busy(on, text, frac) {
+    $('busy').hidden = !on; state.busy = on;
+    if (text) $('busy-text').textContent = text;
+    if (frac !== undefined) $('busy-prog').value = frac;
+  }
+
+  // ---------- controls ----------
+  function fillSelect(sel, group, extra) {
+    sel.innerHTML = '';
+    if (extra) sel.append(new Option(extra[1], extra[0]));
+    const groups = {};
+    for (const [key, sc] of Object.entries(SCENES)) if (sc.group === group) (groups[sc.cat || ''] = groups[sc.cat || ''] || []).push([key, sc]);
+    // Nature first, then the rest
+    for (const cat of Object.keys(groups).sort((a, b) => (b === 'Nature') - (a === 'Nature'))) {
+      const target = cat ? Object.assign(document.createElement('optgroup'), { label: cat }) : sel;
+      for (const [key, sc] of groups[cat]) target.append(new Option(sc.label, key));
+      if (cat) sel.append(target);
+    }
+  }
+  fillSelect($('theme2d'), '2D', ['random', 'Random']);
+  fillSelect($('scene3d'), '3D');
+  const pxSeg = $('px-seg');
+  SIZES.forEach(([label], i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.dataset.size = i;
+    b.setAttribute('aria-pressed', String(i === state.size)); pxSeg.append(b);
+  });
+
+  function syncUI() {
+    document.querySelectorAll('#mode-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
+    document.querySelectorAll('#px-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.size === state.size)));
+    document.querySelectorAll('#fps-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.fps === state.fps)));
+    $('g-2d').hidden = state.mode !== '2D'; $('g-3d').hidden = state.mode !== '3D'; $('g-photo').hidden = state.mode !== 'Photo';
+    $('theme2d').value = state.theme2d; $('scene3d').value = state.scene3d; $('parallax').checked = state.parallax;
+    $('hint3d').textContent = (SCENES[state.scene3d] && SCENES[state.scene3d].hint) || '';
+    $('seed').value = state.seed; $('animated').checked = state.animated;
+    $('len').value = state.duration; $('len-out').textContent = state.duration.toFixed(1) + ' s';
+    $('len-row').hidden = !state.animated; $('fps-seg').hidden = !state.animated;
+    const [, w, h] = SIZES[state.size]; $('px-dims').textContent = w + ' × ' + h;
+    $('generate').textContent = state.mode === 'Photo' ? 'Pixelate photo' : 'Generate';
+  }
+
+  $('mode-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.mode = b.dataset.mode; syncUI(); if (state.mode !== 'Photo' || state.photo) render(); });
+  pxSeg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.size = +b.dataset.size; syncUI(); render(); });
+  $('fps-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.fps = +b.dataset.fps; syncUI(); render(); });
+  $('theme2d').addEventListener('change', e => { state.theme2d = e.target.value; render(); });
+  $('scene3d').addEventListener('change', e => { state.scene3d = e.target.value; syncUI(); render(); });
+  $('parallax').addEventListener('change', e => { state.parallax = e.target.checked; render(); });
+  $('animated').addEventListener('change', e => { state.animated = e.target.checked; syncUI(); render(); });
+  $('len').addEventListener('input', e => { state.duration = Math.min(15, +e.target.value); $('len-out').textContent = state.duration.toFixed(1) + ' s'; });
+  $('len').addEventListener('change', () => render());
+  $('seed').addEventListener('change', e => { const v = Math.max(1, Math.min(999999, Math.trunc(+e.target.value) || 1)); state.seed = v; syncUI(); render(); });
+  $('dice').addEventListener('click', () => { state.seed = 1 + Math.floor(Math.random() * 999999); syncUI(); render(); });
+  $('colors').addEventListener('change', e => { state.colors = +e.target.value; if (state.photo) render(); });
+  $('effect').addEventListener('change', e => { state.effect = e.target.value; if (state.photo) render(); });
+  $('generate').addEventListener('click', () => generate());
+  $('surprise').addEventListener('click', () => surprise());
+  $('rerender').addEventListener('click', () => render());
+  $('copy').addEventListener('click', () => copyCurrent());
+  $('save-png').addEventListener('click', () => savePNG());
+  $('save-gif').addEventListener('click', () => saveGIF());
+  $('save-video').addEventListener('click', () => saveVideo());
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest('input, select, textarea')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'g') { e.preventDefault(); generate(); }
+    else if (k === 's') { e.preventDefault(); surprise(); }
+    else if (k === 'c') { e.preventDefault(); copyCurrent(); }
+  });
+
+  function generate() {
+    state.seed = 1 + Math.floor(Math.random() * 999999); syncUI();
+    if (state.mode === 'Photo' && !state.photo) { $('photo-file').click(); return; }
+    render();
+  }
+  function surprise() {
+    state.mode = Math.random() < 0.55 ? '2D' : '3D';
+    const keys = Object.keys(SCENES).filter(k => SCENES[k].group === state.mode);
+    const pick = keys[Math.floor(Math.random() * keys.length)];
+    if (state.mode === '2D') state.theme2d = pick; else state.scene3d = pick;
+    state.parallax = Math.random() < 0.6;
+    state.seed = 1 + Math.floor(Math.random() * 999999);
+    syncUI(); render();
+  }
+
+  // ---------- photo import ----------
+  $('pick-photo').addEventListener('click', () => $('photo-file').click());
+  $('photo-file').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadPhoto(f); e.target.value = ''; });
+  const stage = $('stage');
+  stage.addEventListener('dragover', e => { if ([...e.dataTransfer.items].some(i => i.kind === 'file')) { e.preventDefault(); $('drop').hidden = false; } });
+  stage.addEventListener('dragleave', e => { if (!stage.contains(e.relatedTarget)) $('drop').hidden = true; });
+  stage.addEventListener('drop', e => { e.preventDefault(); $('drop').hidden = true; const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if (f) loadPhoto(f); else toast('Drop a picture file (PNG, JPG, GIF, WebP).'); });
+  document.addEventListener('paste', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    const item = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
+    if (item) { e.preventDefault(); loadPhoto(item.getAsFile()); }
+  });
+  async function loadPhoto(file) {
+    try { state.photo = await createImageBitmap(file); }
+    catch (e) { toast("Couldn't read that picture. Try a PNG or JPG."); return; }
+    state.mode = 'Photo'; syncUI(); render();
+  }
+  function photoBuffer(w, h) {
+    const m = photoMargin(w), W = w + 2 * m, H = h + 2 * m;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    const img = state.photo, sc = Math.max(W / img.width, H / img.height), dw = img.width * sc, dh = img.height * sc;
+    x.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    const d = x.getImageData(0, 0, W, H).data, b = new PX.Buffer(W, H);
+    for (let i = 0; i < W * H; i++) { b.d[i * 3] = d[i * 4] / 255; b.d[i * 3 + 1] = d[i * 4 + 1] / 255; b.d[i * 3 + 2] = d[i * 4 + 2] / 255; }
+    return b;
+  }
+
+  // ---------- rendering ----------
+  async function render() {
+    const gen = ++state.gen;
+    const [, w, h] = SIZES[state.size];
+    const settings = { w, h, seed: state.seed, duration: Math.min(15, state.duration), parallax: state.parallax };
+    let scene, name;
+    if (state.mode === 'Photo') {
+      if (!state.photo) { status('Choose, drop or paste a picture to pixelate.'); return; }
+      busy(true, 'Pixelating photo…', 0); await yieldUI(); if (gen !== state.gen) return;
+      scene = pictureScene(photoBuffer(w, h), settings, state.colors, state.effect);
+      name = 'Photo · ' + $('effect').selectedOptions[0].textContent;
+    } else {
+      let key = state.mode === '2D' ? state.theme2d : state.scene3d;
+      if (key === 'random') { const keys = Object.keys(SCENES).filter(k => SCENES[k].group === '2D'); key = keys[state.seed % keys.length]; }
+      const entry = SCENES[key];
+      busy(true, 'Building scene…', 0); await yieldUI(); if (gen !== state.gen) return;
+      scene = entry.make(settings);
+      name = entry.group + ' · ' + entry.label + (scene.name ? ' · ' + scene.name : '');
+    }
+    const fps = state.fps;
+    const n = state.animated ? Math.max(2, Math.round(Math.min(15, state.duration) * fps)) : 1;
+    const frames = [];
+    let last = performance.now();
+    const t0 = last;
+    for (let i = 0; i < n; i++) {
+      const img = new ImageData(w, h);
+      scene.render(i / n).toImageData(img);
+      frames.push(img);
+      if (performance.now() - last > 24) {
+        busy(true, 'Rendering frame ' + (i + 1) + ' of ' + n + '…', (i + 1) / n);
+        await yieldUI(); last = performance.now();
+        if (gen !== state.gen) return;
+      }
+    }
+    if (gen !== state.gen) return;
+    state.frames = frames; state.frameFps = fps; state.sceneName = name; state.currentGif = null;
+    view.width = w; view.height = h; vctx.putImageData(frames[0], 0, 0); shown = -1;
+    busy(false);
+    const ms = Math.round(performance.now() - t0);
+    status(n > 1 ? `${name} · ${n} frames · ${(n / fps).toFixed(1)} s loop · seed ${state.seed} · ${ms} ms` : `${name} · seed ${state.seed} · ${ms} ms`);
+    renderShelf();
+    if (n > 1) makeShelfGif(gen, frames, fps, name);
+  }
+
+  // playback
+  let shown = -1;
+  function tick(now) {
+    const f = state.frames;
+    if (f.length > 1) {
+      const i = Math.floor(now / 1000 * state.frameFps) % f.length;
+      if (i !== shown) { vctx.putImageData(f[i], 0, 0); shown = i; }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- GIF shelf ----------
+  const gifScale = w => Math.max(1, Math.round(640 / w));
+  async function makeShelfGif(gen, frames, fps, name) {
+    let last = performance.now();
+    const bytes = await encodeGIF(frames, fps, gifScale(frames[0].width), async frac => {
+      if (performance.now() - last > 30) { status('Making GIF… ' + Math.round(frac * 100) + '%'); await yieldUI(); last = performance.now(); }
+    });
+    const blob = new Blob([bytes], { type: 'image/gif' });
+    const item = { blob, url: URL.createObjectURL(blob), name, filename: fileName(name, 'gif') };
+    shelf.unshift(item);
+    while (shelf.length > 30) URL.revokeObjectURL(shelf.pop().url);
+    if (gen === state.gen) {
+      state.currentGif = item;
+      status(`${state.sceneName} · ${frames.length} frames · ${(frames.length / fps).toFixed(1)} s loop · seed ${state.seed} · GIF ready`);
+    }
+    renderShelf();
+  }
+  function fileName(name, ext) {
+    const d = new Date(), p = v => String(v).padStart(2, '0');
+    const base = name.replace(/[·/\\:]+/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-').trim();
+    return `RPG ${base} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}.${ext}`;
+  }
+  function renderShelf() {
+    const strip = $('strip');
+    $('shelf-count').textContent = shelf.length;
+    strip.querySelectorAll('.item').forEach(n => n.remove());
+    $('shelf-empty').hidden = shelf.length > 0;
+    for (const item of shelf) {
+      const el = document.createElement('div'); el.className = 'item' + (item === state.currentGif ? ' current' : '');
+      const img = document.createElement('img'); img.src = item.url; img.alt = item.name + ' GIF';
+      const nm = document.createElement('div'); nm.className = 'name'; nm.textContent = item.name; nm.title = item.filename;
+      const pair = document.createElement('div'); pair.className = 'pair';
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn'; cb.textContent = 'Copy'; cb.setAttribute('aria-label', 'Copy ' + item.name + ' GIF');
+      cb.addEventListener('click', () => copyGifBlob(item.blob, img));
+      pair.append(cb);
+      if (!dlReady || dl) {
+        const sb = document.createElement('button'); sb.type = 'button'; sb.className = 'btn'; sb.textContent = 'Save'; sb.setAttribute('aria-label', 'Save ' + item.name + ' GIF');
+        sb.addEventListener('click', () => saveFile(item.filename, item.blob));
+        pair.append(sb);
+      }
+      el.append(img, nm, pair); strip.append(el);
+    }
+  }
+
+  // ---------- copy ----------
+  const canClip = () => navigator.clipboard && typeof ClipboardItem !== 'undefined';
+  const supports = t => !ClipboardItem.supports || ClipboardItem.supports(t);
+  function upscaledCanvas(img, k) {
+    const src = document.createElement('canvas'); src.width = img.width; src.height = img.height; src.getContext('2d').putImageData(img, 0, 0);
+    const c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+  const canvasBlob = (c, type) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('encode failed')), type));
+  async function copyGifBlob(blob, imgEl) {
+    if (!canClip()) { toast('This browser blocks copying pictures here.'); return; }
+    if (supports('image/gif')) {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/gif': blob })]); toast('Copied the animated GIF.'); return; } catch (e) { /* fall through */ }
+    }
+    try {
+      const png = (async () => {
+        const bmp = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(bmp, 0, 0); return canvasBlob(c, 'image/png');
+      })();
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      toast("Copied a still frame. Browsers can't put animated GIFs on the clipboard; use Save to keep the animated GIF.");
+    } catch (e) { toast('Copying was blocked on this page. Use Save instead.'); }
+  }
+  async function copyCurrent() {
+    if (!state.frames.length) return;
+    if (state.frames.length > 1) {
+      if (state.currentGif) return copyGifBlob(state.currentGif.blob);
+      toast('The GIF is still being made. Try again in a moment.'); return;
+    }
+    if (!canClip()) { toast('This browser blocks copying pictures here.'); return; }
+    try {
+      const c = upscaledCanvas(state.frames[0], Math.max(1, Math.round(1920 / state.frames[0].width)));
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': canvasBlob(c, 'image/png') })]);
+      toast('Copied the picture.');
+    } catch (e) { toast('Copying was blocked on this page.'); }
+  }
+
+  // ---------- saves ----------
+  async function savePNG() {
+    if (!state.frames.length) return;
+    const img = state.frames[shown >= 0 && shown < state.frames.length ? shown : 0];
+    const blob = await canvasBlob(upscaledCanvas(img, Math.max(1, Math.round(1920 / img.width))), 'image/png');
+    saveFile(fileName(state.sceneName, 'png'), blob);
+  }
+  async function saveGIF() {
+    if (state.frames.length < 2) { toast('Turn on "Animated loop" to make a GIF.'); return; }
+    if (!state.currentGif) { toast('The GIF is still being made. Try again in a moment.'); return; }
+    saveFile(state.currentGif.filename, state.currentGif.blob);
+  }
+  async function saveVideo() {
+    if (!state.frames.length) return;
+    if (typeof MediaRecorder === 'undefined') { toast("This browser can't record video."); return; }
+    const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const type = types.find(t => MediaRecorder.isTypeSupported(t));
+    if (!type) { toast("This browser can't record video."); return; }
+    const ext = type.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const frames = state.frames.length > 1 ? state.frames : Array(state.frameFps * 3).fill(state.frames[0]);
+    const fps = state.frameFps, k = Math.max(1, Math.round(1280 / frames[0].width));
+    const c = document.createElement('canvas'); c.width = frames[0].width * k; c.height = frames[0].height * k;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+    const tmp = document.createElement('canvas'); tmp.width = frames[0].width; tmp.height = frames[0].height; const tx = tmp.getContext('2d');
+    const draw = i => { tx.putImageData(frames[i], 0, 0); x.drawImage(tmp, 0, 0, c.width, c.height); };
+    draw(0);
+    const stream = c.captureStream(fps);
+    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 8_000_000 });
+    const chunks = []; rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise(r => rec.onstop = r);
+    busy(true, 'Recording video… (plays once in real time)', 0);
+    rec.start();
+    const start = performance.now();
+    await new Promise(resolve => {
+      const step = () => {
+        const i = Math.floor((performance.now() - start) / 1000 * fps);
+        if (i >= frames.length) { resolve(); return; }
+        draw(i); $('busy-prog').value = i / frames.length;
+        setTimeout(step, 1000 / fps / 2);
+      };
+      step();
+    });
+    rec.stop(); await done; busy(false);
+    const blob = new Blob(chunks, { type: type.split(';')[0] });
+    saveFile(fileName(state.sceneName, ext), blob);
+  }
+
+  syncUI();
+  render();
+})();
+</script>
+
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
+</body></html>
