@@ -1610,21 +1610,46 @@ if (typeof document !== 'undefined') (function app() {
       try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
     } else {
       // Standalone site (e.g. GitHub Pages): plain browser downloads
-      dl = { async save({ filename, data }) {
-        const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+      dl = { standalone: true, async save({ filename, data, handle }) {
+        const blob = data instanceof Blob ? data : new Blob([data]);
+        if (!handle && window.showSaveFilePicker) {
+          const t0 = performance.now();
+          try { handle = await pickSaveHandle(filename); }
+          catch (e) {
+            // a real "Cancel" takes a person at least a moment; an instant abort means the window can't open here
+            if (e && e.name === 'AbortError' && performance.now() - t0 > 600) throw { code: 'declined' };
+            handle = null;
+          }
+        }
+        if (handle) {                       // Chrome's "Save as" window: the file is written for sure
+          const w = await handle.createWritable(); await w.write(blob); await w.close();
+          return { status: 'saved', name: handle.name };
+        }
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-        return { status: 'saved' };
+        return { status: 'downloading' };
       } };
+      // Ask Chrome to keep this site's saved GIFs and settings instead of clearing them when space runs low
+      try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
     }
     dlReady = true;
     if (!dl) { document.querySelectorAll('.save').forEach(b => b.hidden = true); $('savenote').hidden = false; renderShelf(); }
   })();
 
-  async function saveFile(filename, blob) {
+  const SAVE_TYPES = { gif: ['GIF animation', 'image/gif'], png: ['PNG picture', 'image/png'], mp4: ['MP4 video', 'video/mp4'], webm: ['WebM video', 'video/webm'] };
+  function pickSaveHandle(filename) {
+    const ext = filename.split('.').pop().toLowerCase(), t = SAVE_TYPES[ext];
+    return window.showSaveFilePicker({ suggestedName: filename, types: t ? [{ description: t[0], accept: { [t[1]]: ['.' + ext] } }] : undefined });
+  }
+  async function saveFile(filename, blob, handle) {
     if (!dlReady) { toast('Saving is still getting ready. Try again in a moment.'); return; }
     if (!dl) { toast("Saving files isn't available in this view."); return; }
-    try { await dl.save({ filename, data: blob }); toast('Saved ' + filename + '.'); }
+    try {
+      const r = await dl.save({ filename, data: blob, handle });
+      if (r && r.status === 'downloading') toast('Downloading ' + filename + '. Look in your Downloads folder. If nothing appears, Chrome may be blocking downloads (check the icon at the right of the address bar).');
+      else toast('Saved ' + ((r && r.name) || filename) + '.');
+    }
     catch (e) {
       const code = e && e.code;
       if (code === 'declined') toast('Save cancelled.');
@@ -2096,6 +2121,13 @@ if (typeof document !== 'undefined') (function app() {
     const type = types.find(t => MediaRecorder.isTypeSupported(t));
     if (!type) { toast("This browser can't record video."); return; }
     const ext = type.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const videoName = fileName(state.sceneName, ext);
+    let handle = null;
+    if (dl && dl.standalone && window.showSaveFilePicker) {
+      const t0 = performance.now();
+      try { handle = await pickSaveHandle(videoName); }
+      catch (e) { if (e && e.name === 'AbortError' && performance.now() - t0 > 600) { toast('Save cancelled.'); return; } }
+    }
     const frames = state.frames.length > 1 ? state.frames : Array(state.frameFps * 3).fill(state.frames[0]);
     const fps = state.frameFps, k = Math.max(1, Math.round(1280 / frames[0].width));
     const c = document.createElement('canvas'); c.width = frames[0].width * k; c.height = frames[0].height * k;
@@ -2121,7 +2153,7 @@ if (typeof document !== 'undefined') (function app() {
     });
     rec.stop(); await done; busy(false);
     const blob = new Blob(chunks, { type: type.split(';')[0] });
-    saveFile(fileName(state.sceneName, ext), blob);
+    saveFile(videoName, blob, handle);
   }
 
   // ---------- settings dialog ----------
