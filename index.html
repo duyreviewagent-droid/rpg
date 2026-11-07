@@ -87,7 +87,14 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
 .item .thumb:hover img { border-color: var(--muted); }
 .item img { width: 168px; height: 94.5px; image-rendering: pixelated; background: #000; border-radius: 4px; border: 2px solid transparent; object-fit: cover; display: block; }
 .item.current img, .item.current .thumb:hover img { border-color: var(--accent); }
-.item .name { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .name { font: 12px var(--body); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; padding: 2px 0; text-align: left; cursor: text; border-radius: 3px; }
+.item .name:hover { background: var(--panel-2); }
+.item .name::after { content: " ✎"; color: var(--muted); }
+.rename { display: grid; gap: 6px; }
+.rename input { background: var(--panel-2); color: var(--fg); border: 1px solid var(--accent); border-radius: 4px; padding: 4px 6px; font: 13px var(--body); min-width: 0; }
+.emojis { display: flex; flex-wrap: wrap; gap: 2px; }
+.emojis button { background: none; border: 0; font-size: 16px; line-height: 1; padding: 3px; border-radius: 4px; cursor: pointer; }
+.emojis button:hover { background: var(--panel-2); }
 .item .pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; }
 .item .btn { padding: 4px 6px; font-size: 12px; }
 .empty { color: var(--muted); font-size: 12px; margin: 0; padding: 18px 0; }
@@ -1735,6 +1742,41 @@ if (typeof document !== 'undefined') (function app() {
     busy(false); renderShelf();
   }
 
+  // ---------- naming GIFs (emojis welcome) ----------
+  const EMOJIS = ['🌲', '🌳', '🍂', '🌸', '🌻', '🌊', '🏝️', '💧', '🌈', '☁️', '🌙', '⭐', '✨', '❄️', '🔥', '🏔️', '🦋', '🍄', '❤️', '😎'];
+  const safeFile = n => n.replace(/[\/\\:*?"<>|]+/g, '-').trim() || 'RPG';
+  function startRename(item, nm) {
+    const box = document.createElement('div'); box.className = 'rename';
+    const input = document.createElement('input'); input.value = item.name; input.maxLength = 60;
+    input.setAttribute('aria-label', 'GIF name');
+    const row = document.createElement('div'); row.className = 'emojis';
+    for (const e of EMOJIS) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = e; b.setAttribute('aria-label', 'Add ' + e);
+      b.addEventListener('mousedown', ev => ev.preventDefault());   // keep the text box focused
+      b.addEventListener('click', () => {
+        const a = input.selectionStart ?? input.value.length, z = input.selectionEnd ?? a;
+        input.value = input.value.slice(0, a) + e + input.value.slice(z);
+        input.focus(); input.setSelectionRange(a + e.length, a + e.length);
+      });
+      row.append(b);
+    }
+    let done = false;
+    const finish = save => {
+      if (done) return; done = true;
+      const v = input.value.trim();
+      if (save && v && v !== item.name) {
+        item.name = v; item.filename = safeFile(v) + '.gif';
+        idb.put(record(item)).catch(() => {});
+        if (state.currentGif === item) state.sceneName = v;
+        toast('Renamed to ' + v);
+      }
+      renderShelf();
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+    input.addEventListener('blur', () => finish(true));
+    box.append(input, row); nm.replaceWith(box); input.focus(); input.select();
+  }
+
   function fileName(name, ext) {
     const d = new Date(), p = v => String(v).padStart(2, '0');
     const base = name.replace(/[·/\\:]+/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-').trim();
@@ -1751,7 +1793,9 @@ if (typeof document !== 'undefined') (function app() {
       thumb.setAttribute('aria-label', 'Open ' + item.name + ' in the preview');
       thumb.addEventListener('click', () => openShelfItem(item));
       const img = document.createElement('img'); img.src = item.url; img.alt = ''; thumb.append(img);
-      const nm = document.createElement('div'); nm.className = 'name'; nm.textContent = item.name; nm.title = item.filename;
+      const nm = document.createElement('button'); nm.type = 'button'; nm.className = 'name'; nm.textContent = item.name;
+      nm.title = 'Rename · ' + item.filename; nm.setAttribute('aria-label', 'Rename ' + item.name);
+      nm.addEventListener('click', () => startRename(item, nm));
       const pair = document.createElement('div'); pair.className = 'pair';
       const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn'; cb.textContent = 'Copy'; cb.setAttribute('aria-label', 'Copy ' + item.name + ' GIF');
       cb.addEventListener('click', () => copyGifBlob(item.blob, img));
