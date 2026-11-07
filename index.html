@@ -1861,4 +1861,19 @@ if (typeof document !== 'undefined') (function app() {
 </script>
 
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
+<script>
+(() => {
+  const sheet = new Image(), N = 48, S = 64;
+  const c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const link = document.querySelector('link[rel="icon"][sizes="32x32"]') || document.querySelector('link[rel="icon"]');
+  if (!link || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let i = 0;
+  sheet.onload = () => setInterval(() => {
+    if (document.hidden) return;
+    x.clearRect(0, 0, S, S); x.drawImage(sheet, i * S, 0, S, S, 0, 0, S, S);
+    link.href = c.toDataURL('image/png'); i = (i + 1) % N;
+  }, 125);
+  sheet.src = 'icon-anim.png';
+})();
+</script>
 </body></html>
