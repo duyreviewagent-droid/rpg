@@ -1580,14 +1580,14 @@ if (typeof document !== 'undefined') (function app() {
   };
   const prefs = Object.assign({}, PREF_DEFAULTS, store.get('rpg.prefs', {}));
   const savePrefs = () => store.set('rpg.prefs', prefs);
-  const STATE_KEYS = ['mode', 'theme2d', 'resolved2d', 'scene3d', 'size', 'seed', 'animated', 'duration', 'fps', 'parallax', 'colors', 'effect'];
+  const STATE_KEYS = ['mode', 'theme2d', 'resolved2d', 'scene3d', 'size', 'seed', 'animated', 'duration', 'fps', 'parallax', 'colors', 'effect', 'editId'];
   let restoring = true;
   function saveState() {
     if (restoring) return;
     const o = {}; for (const k of STATE_KEYS) o[k] = state[k];
     store.set('rpg.state', o);
   }
-  const record = it => ({ id: it.id, blob: it.blob, name: it.name, filename: it.filename, snap: it.snap, created: it.created });
+  const record = it => ({ id: it.id, blob: it.blob, name: it.name, custom: it.custom, filename: it.filename, snap: it.snap, created: it.created });
   async function loadShelf() {
     try {
       const recs = (await idb.all()) || [];
@@ -1717,8 +1717,8 @@ if (typeof document !== 'undefined') (function app() {
   $('animated').addEventListener('change', e => { state.animated = e.target.checked; syncUI(); render(); });
   $('len').addEventListener('input', e => { state.duration = Math.min(15, +e.target.value); $('len-out').textContent = state.duration.toFixed(1) + ' s'; });
   $('len').addEventListener('change', () => render());
-  $('seed').addEventListener('change', e => { const v = Math.max(1, Math.min(999999, Math.trunc(+e.target.value) || 1)); state.seed = v; syncUI(); render(); });
-  $('dice').addEventListener('click', () => { state.seed = 1 + Math.floor(Math.random() * 999999); syncUI(); render(); });
+  $('seed').addEventListener('change', e => { const v = Math.max(1, Math.min(999999, Math.trunc(+e.target.value) || 1)); state.seed = v; state.editId = null; syncUI(); render(); });
+  $('dice').addEventListener('click', () => { state.editId = null; state.seed = 1 + Math.floor(Math.random() * 999999); syncUI(); render(); });
   $('colors').addEventListener('change', e => { state.colors = +e.target.value; if (state.photo) render(); });
   $('effect').addEventListener('change', e => { state.effect = e.target.value; if (state.photo) render(); });
   $('generate').addEventListener('click', () => generate());
@@ -1748,6 +1748,7 @@ if (typeof document !== 'undefined') (function app() {
     return pick;
   }
   function generate() {
+    state.editId = null;
     state.seed = 1 + Math.floor(Math.random() * 999999);
     if (state.mode === '2D' && state.theme2d === 'random') state.resolved2d = pickRandom2D();
     syncUI();
@@ -1759,6 +1760,7 @@ if (typeof document !== 'undefined') (function app() {
     if (state.mode === '2D') { state.theme2d = 'random'; state.resolved2d = pickRandom2D(); }
     else { const keys = Object.keys(SCENES).filter(k => SCENES[k].group === '3D'); state.scene3d = keys[Math.floor(Math.random() * keys.length)]; }
     state.parallax = Math.random() < 0.6;
+    state.editId = null;
     state.seed = 1 + Math.floor(Math.random() * 999999);
     syncUI(); render();
   }
@@ -1778,7 +1780,7 @@ if (typeof document !== 'undefined') (function app() {
   async function loadPhoto(file) {
     try { state.photo = await createImageBitmap(file); idb.setMisc('photo', file).catch(() => {}); }
     catch (e) { toast("Couldn't read that picture. Try a PNG or JPG."); return; }
-    state.mode = 'Photo'; syncUI(); render();
+    state.mode = 'Photo'; state.editId = null; syncUI(); render();
   }
   function photoBuffer(w, h) {
     const m = photoMargin(w), W = w + 2 * m, H = h + 2 * m;
@@ -1953,6 +1955,20 @@ if (typeof document !== 'undefined') (function app() {
       if (gen === state.gen) { state.currentGif = item; status(`${state.sceneName} · ${frames.length} frames · GIF ready`); }
       return;
     }
+    const old = state.editId && shelf.find(s => s.id === state.editId);
+    if (old) {                                   // an edit of this picture: update its GIF, don't add another
+      URL.revokeObjectURL(old.url);
+      Object.assign(old, { blob, url: item.url, snap, photo: item.photo });
+      if (!old.custom) { old.name = name; old.filename = item.filename; }
+      idb.put(record(old)).catch(() => {});
+      if (gen === state.gen) {
+        state.currentGif = old;
+        status(`${state.sceneName} · ${frames.length} frames · ${(frames.length / fps).toFixed(1)} s loop · seed ${state.seed} · GIF updated`);
+      }
+      renderShelf(); return;
+    }
+    if (gen !== state.gen) return;               // superseded by a newer edit before it finished
+    state.editId = item.id; saveState();
     idb.put(record(item)).catch(() => {});
     shelf.unshift(item);
     while (shelf.length > SHELF_MAX) { const old = shelf.pop(); URL.revokeObjectURL(old.url); idb.del(old.id).catch(() => {}); }
@@ -1966,6 +1982,7 @@ if (typeof document !== 'undefined') (function app() {
       or decode the GIF itself when its source photo isn't available any more. */
   async function openShelfItem(item) {
     const s = item.snap;
+    state.editId = item.id;                      // edits from here update this GIF
     if (s && (s.mode !== 'Photo' || item.photo)) {
       // GIFs saved before "resolved2d" existed picked their scene from the seed
       const legacy = () => { const ks = Object.keys(SCENES).filter(k => SCENES[k].group === '2D'); return ks[s.seed % ks.length]; };
@@ -2018,7 +2035,7 @@ if (typeof document !== 'undefined') (function app() {
       if (done) return; done = true;
       const v = input.value.trim();
       if (save && v && v !== item.name) {
-        item.name = v; item.filename = safeFile(v) + '.gif';
+        item.name = v; item.custom = true; item.filename = safeFile(v) + '.gif';
         idb.put(record(item)).catch(() => {});
         if (state.currentGif === item) state.sceneName = v;
         toast('Renamed to ' + v);
@@ -2210,14 +2227,15 @@ if (typeof document !== 'undefined') (function app() {
   })();
   restoring = false;
   syncUI();
-  loadShelf();
+  // the shelf loads first, so the restored picture keeps updating its own GIF
+  const shelfReady = loadShelf().catch(() => {});
   if (state.mode === 'Photo') {
     idb.getMisc('photo').then(async blob => {
       if (blob) { try { state.photo = await createImageBitmap(blob); } catch (e) {} }
       if (!state.photo) { state.mode = '2D'; syncUI(); }
-      render();
-    }).catch(() => { state.mode = '2D'; syncUI(); render(); });
-  } else render();
+      await shelfReady; render();
+    }).catch(() => { state.mode = '2D'; syncUI(); shelfReady.then(() => render()); });
+  } else shelfReady.then(() => render());
 })();
 </script>
 
