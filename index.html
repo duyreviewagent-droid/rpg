@@ -83,10 +83,12 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
 .shelf header span { color: var(--muted); font-size: 12px; }
 .strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; min-width: 0; }
 .item { flex: none; width: 168px; display: grid; gap: 6px; }
-.item img { width: 168px; height: 94.5px; image-rendering: pixelated; background: #000; border-radius: 4px; border: 2px solid transparent; object-fit: cover; }
-.item.current img { border-color: var(--accent); }
+.item .thumb { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; display: block; }
+.item .thumb:hover img { border-color: var(--muted); }
+.item img { width: 168px; height: 94.5px; image-rendering: pixelated; background: #000; border-radius: 4px; border: 2px solid transparent; object-fit: cover; display: block; }
+.item.current img, .item.current .thumb:hover img { border-color: var(--accent); }
 .item .name { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.item .pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; }
 .item .btn { padding: 4px 6px; font-size: 12px; }
 .empty { color: var(--muted); font-size: 12px; margin: 0; padding: 18px 0; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 20; }
@@ -187,7 +189,7 @@ main { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0
       <p class="savenote" id="savenote" hidden>Saving files isn't available in this view. Copy still works, and the shelf below keeps your GIFs.</p>
     </div>
     <section class="shelf" aria-label="Your GIFs">
-      <header><b>Your GIFs</b><span id="shelf-count">0</span><span>Kept until you close this page.</span></header>
+      <header><b>Your GIFs</b><span id="shelf-count">0</span><span>Saved in this browser. Click one to open it again.</span></header>
       <div class="strip" id="strip"><p class="empty" id="shelf-empty">Every animated loop you generate lands here as its own GIF, with its own Copy and Save buttons.</p></div>
     </section>
   </main>
@@ -1440,6 +1442,39 @@ if (typeof document !== 'undefined') (function app() {
     frames: [], frameFps: 12, sceneName: '', photo: null, gen: 0, busy: false, currentGif: null,
   };
   const shelf = [];
+  // ---------- shelf storage: GIFs stay in this browser between visits ----------
+  const SHELF_MAX = 60;
+  const idb = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((res, rej) => {
+      if (typeof indexedDB === 'undefined') return rej(new Error('no indexedDB'));
+      const r = indexedDB.open('rpg', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('shelf', { keyPath: 'id' });
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    }));
+    const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('shelf', mode); const out = fn(t.objectStore('shelf')); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); };
+    return {
+      all: () => tx('readonly', st => st.getAll()),
+      put: rec => tx('readwrite', st => st.put(rec)),
+      del: id => tx('readwrite', st => st.delete(id)),
+    };
+  })();
+  const record = it => ({ id: it.id, blob: it.blob, name: it.name, filename: it.filename, snap: it.snap, created: it.created });
+  async function loadShelf() {
+    try {
+      const recs = (await idb.all()) || [];
+      recs.sort((a, b) => b.created - a.created);
+      for (const r of recs) shelf.push({ ...r, url: URL.createObjectURL(r.blob) });
+      renderShelf();
+    } catch (e) { /* storage blocked: shelf works for this visit only */ }
+  }
+  function removeFromShelf(item) {
+    const i = shelf.indexOf(item); if (i >= 0) shelf.splice(i, 1);
+    URL.revokeObjectURL(item.url);
+    if (state.currentGif === item) state.currentGif = null;
+    idb.del(item.id).catch(() => {});
+    renderShelf();
+  }
   const view = $('view'), vctx = view.getContext('2d');
   let dl, dlReady = false;
 
@@ -1592,8 +1627,10 @@ if (typeof document !== 'undefined') (function app() {
   }
 
   // ---------- rendering ----------
-  async function render() {
+  async function render(opts = {}) {
     const gen = ++state.gen;
+    const snap = { mode: state.mode, theme2d: state.theme2d, scene3d: state.scene3d, size: state.size, seed: state.seed,
+      duration: state.duration, fps: state.fps, parallax: state.parallax, colors: state.colors, effect: state.effect, animated: state.animated };
     const [, w, h] = SIZES[state.size];
     const settings = { w, h, seed: state.seed, duration: Math.min(15, state.duration), parallax: state.parallax };
     let scene, name;
@@ -1632,7 +1669,8 @@ if (typeof document !== 'undefined') (function app() {
     const ms = Math.round(performance.now() - t0);
     status(n > 1 ? `${name} · ${n} frames · ${(n / fps).toFixed(1)} s loop · seed ${state.seed} · ${ms} ms` : `${name} · seed ${state.seed} · ${ms} ms`);
     renderShelf();
-    if (n > 1) makeShelfGif(gen, frames, fps, name);
+    if (opts.item) { state.currentGif = opts.item; renderShelf(); status(`${name} · reopened from your GIFs · seed ${state.seed}`); }
+    else if (n > 1) makeShelfGif(gen, frames, fps, name, snap);
   }
 
   // playback
@@ -1649,21 +1687,54 @@ if (typeof document !== 'undefined') (function app() {
 
   // ---------- GIF shelf ----------
   const gifScale = w => Math.max(1, Math.round(640 / w));
-  async function makeShelfGif(gen, frames, fps, name) {
+  async function makeShelfGif(gen, frames, fps, name, snap) {
     let last = performance.now();
     const bytes = await encodeGIF(frames, fps, gifScale(frames[0].width), async frac => {
       if (performance.now() - last > 30) { status('Making GIF… ' + Math.round(frac * 100) + '%'); await yieldUI(); last = performance.now(); }
     });
     const blob = new Blob([bytes], { type: 'image/gif' });
-    const item = { blob, url: URL.createObjectURL(blob), name, filename: fileName(name, 'gif') };
+    const item = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 8), blob, url: URL.createObjectURL(blob), name,
+      filename: fileName(name, 'gif'), snap, created: Date.now(), photo: snap.mode === 'Photo' ? state.photo : null };
+    idb.put(record(item)).catch(() => {});
     shelf.unshift(item);
-    while (shelf.length > 30) URL.revokeObjectURL(shelf.pop().url);
+    while (shelf.length > SHELF_MAX) { const old = shelf.pop(); URL.revokeObjectURL(old.url); idb.del(old.id).catch(() => {}); }
     if (gen === state.gen) {
       state.currentGif = item;
       status(`${state.sceneName} · ${frames.length} frames · ${(frames.length / fps).toFixed(1)} s loop · seed ${state.seed} · GIF ready`);
     }
     renderShelf();
   }
+  /** Put a shelf GIF back in the preview: re-render it from its saved settings (sharp, editable),
+      or decode the GIF itself when its source photo isn't available any more. */
+  async function openShelfItem(item) {
+    const s = item.snap;
+    if (s && (s.mode !== 'Photo' || item.photo)) {
+      Object.assign(state, { mode: s.mode, theme2d: s.theme2d, scene3d: s.scene3d, size: s.size, seed: s.seed, duration: s.duration,
+        fps: s.fps, parallax: s.parallax, colors: s.colors, effect: s.effect, animated: true });
+      if (s.mode === 'Photo') state.photo = item.photo;
+      $('colors').value = String(s.colors); $('effect').value = s.effect;
+      syncUI(); render({ item }); return;
+    }
+    if (typeof ImageDecoder === 'undefined') { toast("This browser can't reopen this GIF. Save it to keep it."); return; }
+    try {
+      busy(true, 'Opening GIF…', 0); state.gen++;
+      const dec = new ImageDecoder({ data: await item.blob.arrayBuffer(), type: 'image/gif' });
+      await dec.tracks.ready;
+      const n = dec.tracks.selectedTrack.frameCount, frames = []; let dur = 0;
+      for (let i = 0; i < n; i++) {
+        const { image } = await dec.decode({ frameIndex: i });
+        const c = document.createElement('canvas'); c.width = image.displayWidth; c.height = image.displayHeight;
+        const x = c.getContext('2d'); x.drawImage(image, 0, 0); frames.push(x.getImageData(0, 0, c.width, c.height));
+        dur += image.duration || 0; image.close();
+      }
+      state.frames = frames; state.frameFps = dur ? Math.max(1, Math.round(n / (dur / 1e6))) : 12;
+      state.sceneName = item.name; state.currentGif = item;
+      view.width = frames[0].width; view.height = frames[0].height; vctx.putImageData(frames[0], 0, 0); shown = -1;
+      status(`${item.name} · reopened from your GIFs`);
+    } catch (e) { toast("Couldn't open that GIF."); }
+    busy(false); renderShelf();
+  }
+
   function fileName(name, ext) {
     const d = new Date(), p = v => String(v).padStart(2, '0');
     const base = name.replace(/[·/\\:]+/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, '-').trim();
@@ -1676,7 +1747,10 @@ if (typeof document !== 'undefined') (function app() {
     $('shelf-empty').hidden = shelf.length > 0;
     for (const item of shelf) {
       const el = document.createElement('div'); el.className = 'item' + (item === state.currentGif ? ' current' : '');
-      const img = document.createElement('img'); img.src = item.url; img.alt = item.name + ' GIF';
+      const thumb = document.createElement('button'); thumb.type = 'button'; thumb.className = 'thumb';
+      thumb.setAttribute('aria-label', 'Open ' + item.name + ' in the preview');
+      thumb.addEventListener('click', () => openShelfItem(item));
+      const img = document.createElement('img'); img.src = item.url; img.alt = ''; thumb.append(img);
       const nm = document.createElement('div'); nm.className = 'name'; nm.textContent = item.name; nm.title = item.filename;
       const pair = document.createElement('div'); pair.className = 'pair';
       const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn'; cb.textContent = 'Copy'; cb.setAttribute('aria-label', 'Copy ' + item.name + ' GIF');
@@ -1687,7 +1761,11 @@ if (typeof document !== 'undefined') (function app() {
         sb.addEventListener('click', () => saveFile(item.filename, item.blob));
         pair.append(sb);
       }
-      el.append(img, nm, pair); strip.append(el);
+      const xb = document.createElement('button'); xb.type = 'button'; xb.className = 'btn'; xb.textContent = '✕';
+      xb.title = 'Delete'; xb.setAttribute('aria-label', 'Delete ' + item.name + ' GIF');
+      xb.addEventListener('click', () => removeFromShelf(item));
+      pair.append(xb);
+      el.append(thumb, nm, pair); strip.append(el);
     }
   }
 
@@ -1777,6 +1855,7 @@ if (typeof document !== 'undefined') (function app() {
   }
 
   syncUI();
+  loadShelf();
   render();
 })();
 </script>
